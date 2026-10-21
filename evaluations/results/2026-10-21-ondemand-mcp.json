@@ -1,0 +1,26 @@
+{
+  "status": "passed",
+  "tool_count": 10,
+  "snapshot_id": "8c3f327f9674490ba2ac1a9e521071cf",
+  "snapshot_documents": 1774,
+  "cache_revision": "08bda3ac496ba5feed72e577de327057d0be4485",
+  "cache_document_hash": "3869a8bf0a5144ef5c741b74fb3739bf10eb16af669c65a60a233aad943a9323",
+  "original_bytes": 20550,
+  "original_pages": 3,
+  "known_paths": 137,
+  "remote_status": "verified",
+  "cache_reuse": true,
+  "offline_note_retrieval": true,
+  "test_note_deleted": true,
+  "client": "official Python MCP SDK via stdio and authenticated shared core",
+  "retrieval_regression": {
+    "status": "passed",
+    "total": 30,
+    "eligible": 24,
+    "executed": 24,
+    "passed": 24,
+    "failed": 0,
+    "skipped": 6
+  },
+  "validation_scope": "Protocol and retrieval checks; not GPT/Claude answer homologation"
+}

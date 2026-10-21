@@ -2,6 +2,14 @@
 
 O servidor usa MCP por `stdio`: o Codex executa o adaptador local, que consulta o núcleo do RAG. Os passos abaixo usam a pasta `D:\mcp-server-cybersecurity` no Windows. Em outra instalação, ajuste a pasta e gere a configuração novamente. Um clone novo precisa primeiro seguir a instalação e a preparação da base no [README](../README.md).
 
+A extensão sob demanda mantém as cinco consultas existentes e acrescenta catálogo, pesquisa conjunta, leitura do cache e gravação/exclusão de notas: são **dez ferramentas**. Somente OWASP tem coleta sob demanda nesta etapa. A [descrição do fluxo](PESQUISA_SOB_DEMANDA.md) explica quais operações acessam a rede ou alteram dados.
+
+## Atualizar uma conexão existente
+
+Após atualizar o código, encerre o núcleo na janela que o iniciou, usando `Ctrl+C`, e inicie-o novamente pelo comando abaixo. Se o núcleo foi iniciado automaticamente, use o mecanismo de encerramento do processo correspondente ou aguarde sua saída por inatividade; não remova arquivos de trava para forçar uma segunda instância. Depois recarregue o servidor MCP no cliente, ou feche e abra o aplicativo, para renovar a lista de ferramentas.
+
+O núcleo novo anuncia internamente `tool_contract: 2`. Se um adaptador novo encontrar um núcleo antigo, as novas ferramentas retornam `CORE_UPGRADE_REQUIRED`, pedindo reinício. As configurações `stdio`, o diretório `data/`, o snapshot e o modelo preparado continuam os mesmos. **Não execute outra importação apenas para habilitar essas ferramentas.**
+
 ## 1. Iniciar o núcleo
 
 Na máquina de desenvolvimento original, o ambiente e a base semântica já estão preparados. Abra uma janela de PowerShell independente do Codex e execute:
@@ -76,6 +84,26 @@ Na base inicial desta máquina, espere cinco fontes (`attack`, `owasp`, `sigma`,
 
 Verifique se o Codex realmente chamou as ferramentas `knowledge_*`, se o resultado não contém erro e se a resposta cita evidências retornadas. Cadastrar o servidor ou obter uma resposta bem escrita, por si só, não confirma o funcionamento do RAG.
 
+## 4. Validar pesquisa sob demanda e memória
+
+Primeiro inspecione a extensão:
+
+> Use knowledge_catalog do cyber-rag. Informe quais fontes suportam consulta sob demanda, quantos caminhos OWASP são conhecidos e quantas versões estão no cache. Não confunda caminhos catalogados com documentos coletados.
+
+Depois teste a coleta explícita:
+
+> Use knowledge_research com query="armazenamento de senhas", source_ids=["owasp"], freshness="refresh" e limit=1. Separe o snapshot, o cache de fontes e a memória. Informe remote_status, revisão, checked_at e freshness; não diga que a verificação deu certo se houver falha ou cooldown.
+
+Repita com `freshness="offline"`. A ferramenta deve reutilizar o conteúdo local disponível sem acessar a rede. Abra o resultado com `knowledge_get_cached_document`, preservando o `document_id` e a `revision` retornados; siga `next_offset` se for preciso ler todas as partes. O cache não é consultado por `knowledge_get_document`, que continua operando sobre snapshots.
+
+Para testar memória, use uma nota curta e não sensível, apoiada em uma evidência atual da pesquisa:
+
+> Grave explicitamente com knowledge_remember uma nota sobre a evidência que acabamos de recuperar, copiando o evidence_reference da ferramenta e usando ttl_days=1. Informe o memory_id e confirme que trust continua derived_unverified. Não salve a conversa inteira nem dados pessoais.
+
+Pesquise termos presentes na nota com `knowledge_research` em modo `offline` e confira `layers.memory`. A busca das notas é lexical. Por fim, peça `knowledge_forget` com o ID exato dessa nota de teste e repita a busca. A nota deve desaparecer, enquanto o documento de origem continua disponível. `EVIDENCE_NOT_CURRENT` na gravação exige revalidar a fonte; não invente uma referência para contornar o erro.
+
+Esse roteiro observa chamadas reais no cliente. Não substitui o benchmark de 30 respostas nem homologa automaticamente o Claude. A extensão foi validada pelo SDK oficial via `stdio` e núcleo autenticado, incluindo cache, memória e exclusão; os resultados estão em [Implementação](IMPLEMENTACAO.md). No ambiente original, o núcleo já foi atualizado e preparado. Recarregue a conexão no Codex para redescobrir as dez ferramentas.
+
 ## Se houver erro
 
 | Sintoma | Verificação |
@@ -86,6 +114,10 @@ Verifique se o Codex realmente chamou as ferramentas `knowledge_*`, se o resulta
 | `INDEX_UNAVAILABLE` | Confira os caminhos da base e execute `doctor`; em um clone novo, prepare o corpus antes de consultar. |
 | `TIMEOUT` na primeira busca | A chamada expirou, mas a carga pode continuar no núcleo; uma tentativa imediata pode receber `BUSY`. Nas próximas inicializações, use `--warmup` e espere `Pronto` antes de consultar. Mantenha `tool_timeout_sec = 150`. |
 | `BUSY` | Aguarde a operação atual e repita; inferência e índice vetorial são serializados nesta alfa. |
+| `CORE_UPGRADE_REQUIRED` | Reinicie o núcleo com o código novo e recarregue a conexão MCP para descobrir as dez ferramentas. |
+| Pesquisa com `remote_status=failed` ou `cooldown` | Leia os avisos e `retry_at` em `knowledge_catalog`; versões locais continuam disponíveis, mas não foram revalidadas. Não repita em loop. |
+| `EVIDENCE_NOT_CURRENT` | Confira os IDs, hashes e revisões retornados, além do estado de verificação; a memória exige evidências atuais e verificáveis. |
+| Caminho OWASP não encontrado | Consulte `knowledge_catalog` e use um caminho existente; a ferramenta não aceita URLs ou arquivos arbitrários. |
 
 Para conferir ambiente e executar o piloto fora da interface do Codex, use o segundo PowerShell com `PYTHONPATH` configurado:
 

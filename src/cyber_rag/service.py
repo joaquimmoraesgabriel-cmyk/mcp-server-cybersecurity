@@ -199,6 +199,8 @@ class KnowledgeService:
         self._vectors = None
         self._vector_sid = None
         self._embedding = None
+        self._research = None
+        self._research_init_lock = threading.Lock()
 
     def close(self):
         with self._lock:
@@ -241,6 +243,13 @@ class KnowledgeService:
             return {"snapshot_id": sid, "profile": manifest["profile"]}
 
     def dispatch(self, name: str, arguments: dict) -> dict:
+        from .research import EXTENDED_TOOLS, ResearchService
+
+        if isinstance(name, str) and name in EXTENDED_TOOLS:
+            with self._research_init_lock:
+                if self._research is None:
+                    self._research = ResearchService(self)
+            return self._research.dispatch(name, arguments)
         envelope = {
             "schema_version": "1.0",
             "request_id": uuid.uuid4().hex,
@@ -389,6 +398,13 @@ class KnowledgeService:
         source_id = args.get("source_id")
         if source_id is not None:
             _text(source_id, "source_id", 64)
+        if not (self.data_dir / "active.json").exists():
+            envelope.update(status="ok", snapshot_id=None, results=[{
+                "snapshot_id": None, "profile": None, "document_count": 0, "sources": {},
+                "snapshot_read_only": True, "read_only": False, "tool_contract": 2,
+                "on_demand_source_ids": ["owasp"], "memory": "explicit_derived_notes",
+            }], warnings=["Snapshot ainda não importado; knowledge_research pode consultar OWASP sob demanda."])
+            return envelope
         sid, directory = snapshot_path(self.data_dir)
         manifest = json.loads((directory / "manifest.json").read_text(encoding="utf-8"))
         sources = manifest["sources"]
@@ -434,7 +450,11 @@ class KnowledgeService:
                     "model": manifest.get("model"),
                     "last_ingestion": last,
                     "reranker": "disabled",
-                    "read_only": True,
+                    "read_only": False,
+                    "snapshot_read_only": True,
+                    "tool_contract": 2,
+                    "on_demand_source_ids": ["owasp"],
+                    "memory": "explicit_derived_notes",
                 }
             ],
         )

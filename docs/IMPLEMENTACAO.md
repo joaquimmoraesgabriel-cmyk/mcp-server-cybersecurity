@@ -1,6 +1,22 @@
-# Entrega da primeira implementação
+# Implementação local e extensão sob demanda
 
 Alfa local `0.1.0a1`, desenvolvida e validada no Windows com Python 3.12.14. Este documento descreve o que foi executado; a [especificação](ESPECIFICACAO_RAG_MCP.md) continua sendo o alvo mais amplo.
+
+## Extensão de 21/10/2026
+
+A implementação agora preserva o snapshot semântico e acrescenta cache OWASP sob demanda e memória derivada, descritos em [Pesquisa sob demanda](PESQUISA_SOB_DEMANDA.md). São dez ferramentas: as cinco consultas originais, `knowledge_catalog`, `knowledge_research`, `knowledge_get_cached_document`, `knowledge_remember` e `knowledge_forget`.
+
+A descoberta OWASP usa uma listagem de caminhos no commit observado e correspondência local de nomes/aliases. O conteúdo coletado usa SQLite/FTS5 em cache separado; o índice E5/Qdrant existente não é reconstruído por pergunta. `auto`, `refresh` e `offline` controlam a rede; TTL, falhas, revisões, limites e datas ficam visíveis. ATT&CK, Sigma, CVE e KEV continuam no snapshot local.
+
+A memória recebe somente notas explicitamente submetidas com referências verificáveis. Todas são `derived_unverified`, têm prazo e limites, e são omitidas quando suas evidências deixam de ser atuais. Ela não captura conversas nem treina modelos. Clientes que usam o mesmo diretório de dados compartilham as notas.
+
+A espera de rede usa trava separada da consulta vetorial. Os endpoints permanecem locais e autenticados; não foram acrescentadas ferramentas de shell, scanner, execução de documentos ou administração dos snapshots. O núcleo anuncia `tool_contract: 2`; atualizar uma instalação exige reiniciar o núcleo e redescobrir as ferramentas no cliente, sem reimportar a base.
+
+**Validação integrada concluída no escopo abaixo.** A suíte geral passou com **216 testes, zero falhas e zero skips**, incluindo dois testes semânticos reais offline. Após os ajustes finais de compatibilidade do núcleo, passaram mais **53 testes focados** de runtime/MCP/pesquisa; após acrescentar a referência à leitura paginada, os **17 testes de pesquisa** passaram novamente. Esses números representam rodadas sobrepostas, não uma soma de testes distintos. Ruff e `git diff --check` passaram.
+
+Pelo SDK oficial MCP, usando `stdio` e o núcleo autenticado real, foram descobertas as dez ferramentas e validados: coleta OWASP, reutilização sem novo download, leitura exata em três páginas, memória explícita, consulta offline e exclusão da nota de teste. O catálogo observado continha 137 caminhos; apenas a cheat sheet de senhas entrou no cache desse ensaio (20.550 bytes). O snapshot semântico permaneceu `8c3f327f9674490ba2ac1a9e521071cf`, com 1.774 documentos. Os 24 pré-requisitos de recuperação foram repetidos e passaram; seis casos de cliente/ambiente continuam pendentes. Consulte o [relatório sanitizado](../evaluations/results/2026-10-21-ondemand-mcp.json).
+
+O Lírio revisou o desenho via OpenRouter, conforme autorização, e apontou riscos de concorrência, frescor, contrato e invalidação. A revisão foi textual; não executou testes. As correções foram verificadas localmente. O SDK confirma o protocolo, não as respostas de GPT/Claude: as 30 respostas e a homologação do aplicativo Claude continuam pendentes. O Codex conectado confirmou o núcleo novo e o snapshot; esta conexão ainda precisa redescobrir as ferramentas novas.
 
 ## Implementado
 
@@ -11,13 +27,14 @@ Alfa local `0.1.0a1`, desenvolvida e validada no Windows com Python 3.12.14. Est
 | Índice semântico preparado | 2.715 vetores locais, 384 dimensões, snapshot `8c3f327f9674490ba2ac1a9e521071cf`. |
 | Recuperação | IDs exatos, BM25, filtros, E5 multilingual local, Qdrant local e fusão RRF. |
 | Originais | Bytes preservados, hashes, paginação, visualização UTF-8 e referência ao arquivo de origem dos objetos extraídos. |
-| Atualizações | Publicação atômica de snapshots; falha de preparação mantém a geração anterior. |
-| MCP | Cinco ferramentas somente leitura pelo SDK oficial; adaptadores stdio compartilham o núcleo. Para continuidade entre aplicativos no Windows, iniciar o núcleo manualmente com `--keep-alive`. |
+| Atualizações | Publicação atômica de snapshots; cache OWASP incremental separado, com falhas e verificação explícitas. |
+| MCP | Dez ferramentas pelo SDK oficial; cinco consultas originais somente leitura e cinco operações de catálogo/pesquisa/cache/memória com efeitos declarados. Adaptadores stdio compartilham o núcleo. Para continuidade entre aplicativos no Windows, iniciar o núcleo manualmente com `--keep-alive`. |
+| Memória | Notas derivadas, referências obrigatórias, validade, quotas, deduplicação e exclusão por ID. |
 | Núcleo | Loopback autenticado por HMAC, proteção contra replay, permissões privadas e limites de conexão/fila. |
-| Administração | CLI para importar, baixar piloto, preparar modelo, consultar, avaliar e gerar configurações. |
+| Administração | CLI para importar, baixar piloto, preparar modelo, consultar, pesquisar sob demanda, inspecionar catálogo, avaliar e gerar configurações. |
 | Distribuição | Projeto Python, wheel local, `uv.lock` e requisitos exportados com hashes; corpus e pesos fora do pacote. |
 
-## Validação executada
+## Histórico de validação da implementação inicial
 
 - **105 testes passaram na suíte geral**, com os dois testes semânticos explicitamente separados nessa rodada. Incluem autenticação, recusa de conexões e manutenção do núcleo manual além do limite de inatividade.
 - **Dois testes semânticos reais passaram**, sem tentativas de rede, usando E5 de 384 dimensões e Qdrant. Verificam normalização, limite de 512 tokens, recuperação sem correspondência lexical, reconstrução, acesso à geração anterior e preservação do ativo após falha.
@@ -31,7 +48,7 @@ Alfa local `0.1.0a1`, desenvolvida e validada no Windows com Python 3.12.14. Est
 
 O modelo utilizado é `intfloat/multilingual-e5-small`, revisão `614241f622f53c4eeff9890bdc4f31cfecc418b3`. O uso é em CPU, com até quatro threads. Os testes de vetores não constituem medição de Recall@k, precisão das respostas ou resistência completa a prompt injection.
 
-## Usar nesta cópia
+## Histórico de uso nesta cópia
 
 Na validação pelo Codex em 21/10/2026, o estado da base respondeu, mas a primeira busca semântica excedeu o prazo e a tentativa seguinte recebeu `BUSY`. A carga continuou no núcleo; uma nova consulta, depois de carregado, retornou em aproximadamente 0,5 s. Foi acrescentado `core --keep-alive --warmup`: a preparação do modelo e do índice ocorre antes de anunciar prontidão e aceitar consultas. Após reiniciar com essa opção, a mesma busca pelo MCP do Codex retornou em aproximadamente 2,5 s; a leitura do documento original da OWASP também retornou conteúdo e citação. O estado `partial` dessas respostas indica paginação, não timeout. A suíte atual passou com **110 testes**, com os dois testes semânticos optativos separados; a busca semântica real foi verificada diretamente pelo MCP conectado.
 
@@ -45,7 +62,7 @@ Os relatórios locais ficam em `data/evaluation-pilot.json`, `data/evaluation-pi
 
 1. Homologar a instalação e as respostas nas interfaces reais de Codex e Claude.
 2. Revisar gabaritos das trinta perguntas de aceitação e medir recuperação e fidelidade das respostas.
-3. Ampliar o corpus, medir tempo/memória e otimizar a indexação antes de recomendar grandes volumes.
+3. Validar a extensão sob demanda e ampliar adaptadores de fonte, medindo tempo/memória antes de recomendar grandes volumes.
 4. Acrescentar retenção de snapshots e instalação mais simples; avaliar reranker com evidência de ganho.
 5. Validar a instalação em um clone novo do repositório público.
 

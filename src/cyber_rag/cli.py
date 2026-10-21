@@ -1,4 +1,4 @@
-"""Explicit local administration; the MCP surface remains read-only."""
+"""Explicit local administration and bounded evidence research."""
 
 from __future__ import annotations
 
@@ -28,6 +28,8 @@ def main(argv=None) -> int:
         "doctor",
         "config",
         "search",
+        "research",
+        "catalog",
         "import",
         "sync-pilot",
         "models",
@@ -44,10 +46,13 @@ def main(argv=None) -> int:
             command.add_argument("--profile", choices=("lexical", "semantic"), default="lexical")
         if name == "sync-pilot":
             command.add_argument("--destination", type=Path, help="Pasta local para snapshots das fontes")
-        if name == "search":
+        if name in {"search", "research"}:
             command.add_argument("query")
-            command.add_argument("--limit", type=int, default=5)
+            command.add_argument("--limit", type=int, default=3 if name == "research" else 5)
             command.add_argument("--source", action="append")
+        if name == "research":
+            command.add_argument("--freshness", choices=("auto", "refresh", "offline"), default="auto")
+            command.add_argument("--path", help="Caminho exato cheatsheets/*.md cadastrado na OWASP")
         if name == "config":
             command.add_argument("--client", choices=("codex", "claude"), required=True)
         if name == "models":
@@ -146,6 +151,11 @@ def main(argv=None) -> int:
             client = ensure_core(data_dir)
             if args.command == "status":
                 result = client.call("knowledge_status", {})
+            elif args.command == "catalog":
+                result = client.call("knowledge_catalog", {})
+            elif args.command == "research":
+                result = client.call("knowledge_research", {"query": args.query, "limit": args.limit,
+                                     "source_ids": args.source, "freshness": args.freshness, "path": args.path})
             else:
                 result = client.call(
                     "knowledge_search",

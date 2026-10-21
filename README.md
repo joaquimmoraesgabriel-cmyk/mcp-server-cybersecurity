@@ -1,6 +1,8 @@
-# Cyber RAG MCP — primeira implementação
+# Cyber RAG MCP — evidências locais e pesquisa sob demanda
 
 Servidor MCP local para consultar evidências de cibersegurança. A IA recebe trechos e fontes verificáveis; o aplicativo cliente produz a resposta. Versão **0.1.0a1**, em desenvolvimento.
+
+O servidor combina o snapshot local já preparado, um cache de fontes obtidas sob demanda e uma memória separada de notas derivadas. A coleta sob demanda começa pela **OWASP Cheat Sheet Series**; ATT&CK, Sigma, CVE e KEV continuam consultados pelo snapshot. Veja o [fluxo, as garantias e os limites](docs/PESQUISA_SOB_DEMANDA.md).
 
 O ambiente, o piloto e o modelo são preparados localmente com os comandos abaixo. Veja a [entrega e os resultados](docs/IMPLEMENTACAO.md) e o [guia para conectar e validar no Codex](docs/CONECTAR_CODEX.md). Na máquina de desenvolvimento original, `.venv/`, `data/` e os blocos em `data/client-config/` já estão preparados; essas pastas não acompanham o clone do repositório.
 
@@ -8,12 +10,14 @@ O projeto roda no computador de quem instala. A compatibilidade pretendida nesta
 
 ## O que já existe
 
-- Cinco ferramentas de leitura: busca, entidade exata, documento, relações documentadas e estado da base.
+- Dez ferramentas MCP: cinco consultas ao snapshot, catálogo de fontes, pesquisa conjunta, leitura do cache e gravação/exclusão explícitas de notas.
 - Importação de ATT&CK STIX 2.1, OWASP Markdown, Sigma YAML, CVE JSON 5 e KEV. NVD 2.0 pode ser importado de arquivos locais.
 - Piloto oficial com commits fixados: duas técnicas ATT&CK, cinco cheat sheets, uma regra Sigma, CVE-2021-44228 e catálogo KEV completo no commit selecionado. É uma seleção inicial, não a cobertura completa planejada.
 - SQLite com busca exata e BM25. Perfil semântico opcional: E5 multilingual local e Qdrant local, fusão RRF. Sem reranker nesta versão.
 - Snapshots imutáveis, troca atômica do índice ativo, citações e originais com SHA-256. Arquivos grandes são paginados em base64 sem alterar BOM ou finais de linha.
-- Um núcleo local compartilhado entre clientes, com comunicação autenticada em loopback. Não existem ferramentas de shell, scanner ou atualização no MCP.
+- Um núcleo local compartilhado entre clientes, com comunicação autenticada em loopback. A pesquisa pode consultar a OWASP e persistir evidências; o MCP não expõe shell, scanner nem administração dos snapshots.
+- Catálogo OWASP por revisão, descoberta local por nomes de arquivos e aliases, cache incremental com SHA-256 e verificação condicional. O conteúdo novo usa busca lexical; o snapshot semântico existente permanece separado.
+- Memória local com referências obrigatórias, prazo de validade e invalidação quando a evidência muda. Notas são sempre `derived_unverified`; não treinam o modelo nem capturam automaticamente a conversa.
 
 ## Preparar o ambiente
 
@@ -39,7 +43,7 @@ Alternativa com pip, para o perfil básico: `python -m pip install --require-has
 .\.venv\Scripts\python.exe -m cyber_rag search 'SQL injection' --source owasp --data-dir .\data
 ```
 
-`sync-pilot` acessa a rede para baixar a seleção cadastrada. O manifesto registra hashes, commits, licenças e o escopo. Erros de parsing ou quarentena impedem publicar a nova geração. Consultas posteriores funcionam sem rede. Atualização é explícita: executar novamente o comando cria outra geração; não há agendamento automático.
+`sync-pilot` acessa a rede para baixar a seleção cadastrada. O manifesto registra hashes, commits, licenças e o escopo. Erros de parsing ou quarentena impedem publicar a nova geração. As cinco consultas ao snapshot funcionam sem rede. Executar novamente o comando cria outra geração; não há agendamento automático. `knowledge_research` usa um cache separado e pode buscar arquivos OWASP sob demanda, sem reconstruir essa geração.
 
 Também é possível importar um manifesto local:
 
@@ -48,6 +52,21 @@ Também é possível importar um manifesto local:
 ```
 
 O manifesto representa **toda a seleção da próxima geração**. Não faz merge implícito com a anterior. Os diretórios de fonte devem estar dentro da pasta do manifesto. Use `tests/fixtures/sources.json` como referência estrutural, mas não misture dados sintéticos à base real.
+
+## Pesquisar nas fontes e na memória
+
+```powershell
+.\.venv\Scripts\python.exe -m cyber_rag catalog --data-dir .\data
+.\.venv\Scripts\python.exe -m cyber_rag research 'armazenamento de senhas' --source owasp --data-dir .\data
+.\.venv\Scripts\python.exe -m cyber_rag research 'password storage' --source owasp --freshness refresh --data-dir .\data
+.\.venv\Scripts\python.exe -m cyber_rag research 'password storage' --source owasp --freshness offline --data-dir .\data
+```
+
+`auto` reutiliza o catálogo verificado por até 24 horas; `refresh` solicita uma nova verificação, respeitando bloqueios temporários após falhas; `offline` não faz requisições externas. A pesquisa mantém `layers.snapshot`, `layers.source_cache` e `layers.memory` separados, com datas e falhas próprias. Consulta ao GitHub não equivale a verificar a correção factual de um documento.
+
+O primeiro acesso consulta os nomes de arquivos em `cheatsheets/` no commit observado e baixa até três arquivos selecionados. A pergunta não é enviada ao GitHub: a descoberta por caminho e a busca no cache acontecem localmente. Um caminho conhecido pode ser indicado com `--path cheatsheets/Password_Storage_Cheat_Sheet.md`. Não são aceitas URLs livres.
+
+Para atualizar uma instalação existente, reinicie o núcleo e recarregue a conexão MCP no cliente para descobrir as dez ferramentas. Não é necessário reimportar o piloto nem baixar novamente o modelo. Um núcleo antigo retorna `CORE_UPGRADE_REQUIRED` nas novas operações; siga o [guia de atualização e validação](docs/CONECTAR_CODEX.md).
 
 ## Ativar busca semântica
 
@@ -101,12 +120,21 @@ Guias oficiais: [Codex MCP](https://developers.openai.com/codex/mcp/), [Claude D
 | `knowledge_get_document` | ID retornado pela base; original ou seção, partes em base64 e hashes. |
 | `knowledge_get_related` | Relações de um salto documentadas nas fontes, com evidência. |
 | `knowledge_status` | Escopo, datas, perfil, contagens e última ingestão. |
+| `knowledge_catalog` | Repositórios cadastrados, capacidades, caminhos OWASP conhecidos, estado do cache e contagens da memória. Sem consulta remota. |
+| `knowledge_research` | Pesquisa conjunta por `query`, `source_ids`, `freshness`, `limit` de 1 a 3 por camada e `path` OWASP opcional. Pode coletar evidências e limpar notas expiradas. |
+| `knowledge_get_cached_document` | Bytes de uma versão do cache, por ID, `revision` e `offset`; não consulta a rede. |
+| `knowledge_remember` | Grava nota derivada de até 4.000 caracteres, com 1 a 8 referências verificáveis e validade de 1 a 90 dias, padrão 30. |
+| `knowledge_forget` | Exclui uma nota pelo `memory_id`, preservando suas evidências de origem. |
+
+As cinco primeiras ferramentas mantêm o contrato original somente leitura. Pesquisa e memória têm permissões próprias: `research` pode acessar origens externas aprovadas e escrever cache; `remember` escreve notas; `forget` exclui somente a nota indicada. Não trate as dez operações como globalmente somente leitura.
+
+Use os campos `evidence_reference` retornados pela pesquisa para criar notas; não invente IDs, hashes ou URLs. A memória revalida as referências antes de responder, omite notas sem evidência atual e não conta como confirmação independente. Clientes que usam o mesmo diretório de dados compartilham a memória. Use somente notas reutilizáveis sem dados pessoais ou segredos.
 
 Filtros: `source_ids`, `content_types`, `domains`, `platforms`, `product`, `entity_ids`, `lifecycle_status`, `published_from`, `published_to`, `kev_presence`, `cvss`. Datas exigem ISO 8601 com fuso; início inclusivo e final exclusivo. O CVSS exige versão, provedor, operador (`eq`, `gte`, `lte`, `gt`, `lt`) e valor. Campos diferentes combinam com AND; listas combinam com OR. `product` é correspondência nominal exata, não avaliação de versões afetadas.
 
 IDs de fonte: `attack`, `owasp`, `sigma`, `cve`, `kev`, `nvd`. IDs de documento vêm das respostas. Reutilize `snapshot_id` ao abrir uma citação. Continue a paginação repetindo os mesmos argumentos e adicionando `cursor`; cursores expiram em quinze minutos ou ao reiniciar o núcleo.
 
-O orçamento por resposta é de 24.000 caracteres de conteúdo recuperado. Trechos de busca são explicitamente excertos. O original completo é recuperado por `knowledge_get_document`; junte as partes decodificadas e confira `original_hash`. Objetos extraídos de STIX/KEV também apontam para o documento do arquivo original, preservado integralmente.
+O orçamento do contrato original de consultas ao snapshot é de 24.000 caracteres de conteúdo recuperado por resposta. Trechos de busca são explicitamente excertos. O original completo é recuperado por `knowledge_get_document`; junte as partes decodificadas e confira `original_hash`. Objetos extraídos de STIX/KEV também apontam para o documento do arquivo original, preservado integralmente. A pesquisa conjunta tem limites por camada e não oferece cursor; as versões do cache usam `knowledge_get_cached_document`, com `revision` fixa e `next_offset` até `last_part`.
 
 A busca ignora trechos Markdown que contêm apenas títulos e aproveita até quatro trechos com conteúdo por documento, mantendo o teto de 3.600 caracteres por documento e de 1.800 por trecho. Quando o primeiro trecho e a seção seguinte cabem juntos em 1.800 caracteres, a seção seguinte acompanha o resultado como `adjacent_context`, com citação própria. Isso também funciona nos snapshots já existentes; o documento original e seus identificadores de seção continuam preservados.
 
@@ -133,9 +161,15 @@ Para os pré-requisitos das 30 perguntas: `python -m cyber_rag evaluate --data-d
 - Não existe LLM dentro do servidor. O cliente pode enviar à OpenAI ou Anthropic os trechos recebidos; armazenamento local não torna a conversa inteiramente offline.
 - O cliente controla suas políticas e permissões. Conteúdo recuperado não deve ser tratado como instrução; isso reduz o risco de prompt injection, sem garantir eliminá-lo.
 - Qdrant local e inferência são serializados. Cancelar no cliente não interrompe à força uma inferência em andamento. O próximo pedido pode receber `BUSY`.
+- A coleta remota usa trava própria e não ocupa a fila do snapshot enquanto espera a rede. Outra pesquisa ou operação de memória pode receber `BUSY`; a etapa local da pesquisa ainda compartilha o índice semântico.
+- Apenas OWASP tem adaptador sob demanda. A descoberta por nomes pode não encontrar uma recomendação escondida no corpo de um arquivo ainda não coletado. O catálogo de caminhos não significa que todo o repositório foi indexado.
+- O cache mantém até 1.000 versões e possui teto de 128 MiB; ao atingir o limite, recusa novas coletas e preserva o conteúdo anterior. Não há remoção automática de versões do cache nesta etapa.
+- A memória tem até 1.000 notas e 8 MiB de texto, com expiração e exclusão. Referência válida comprova procedência, não que a conclusão escrita pela IA esteja correta.
 - A busca retorna um conjunto limitado de candidatos, não uma exportação exaustiva do corpus. Dados antigos e conflitos permanecem identificados por fonte e data.
 - Snapshots antigos são mantidos; ainda não há coleta automática de lixo. O disco cresce a cada atualização.
 - Homologação nas interfaces reais de Codex/Claude e avaliação ampla de qualidade são etapas seguintes.
+
+A extensão passou pela suíte geral de 216 testes, por verificações focadas posteriores e por uma consulta real via SDK MCP: dez ferramentas, coleta/reutilização do cache, integridade do original, memória offline e exclusão. Os 24 checks de recuperação anteriores continuam passando, com seis pendências. Isso não aprova as 30 respostas dos clientes; Claude permanece sem homologação. Veja [resultados e escopo](docs/IMPLEMENTACAO.md).
 
 ## Publicação e conteúdo de terceiros
 

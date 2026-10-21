@@ -1,12 +1,26 @@
 # Especificação do RAG local de cibersegurança com MCP
 
-Versão documental 1.0 — 20 de outubro de 2026 — Fuso de referência America/Sao_Paulo.
+Versão documental 1.1 — 21 de outubro de 2026 — Fuso de referência America/Sao_Paulo.
 
 **Estado de implementação:** esta especificação registra o alvo do projeto. A primeira versão alfa e seus limites estão descritos no [README](../README.md); a existência do código não significa aprovação de todos os critérios abaixo.
 
 O projeto será um serviço de conhecimento de cibersegurança executado no computador de cada usuário e distribuído pelo GitHub. A base, os índices e a recuperação permanecerão locais. GPT e Claude consultarão o conhecimento por ferramentas MCP e produzirão respostas com evidências e referências.
 
-Este documento define a primeira versão, seus fluxos, contratos, perguntas de avaliação e critérios de aprovação. As decisões de arquitetura abaixo orientam a implementação futura. Nenhuma funcionalidade está implementada ou homologada por este documento.
+Este documento define a primeira versão, seus fluxos, contratos, perguntas de avaliação e critérios de aprovação. As decisões de arquitetura abaixo orientam a evolução do código. O documento, por si só, não comprova implementação nem homologação.
+
+### Adendo 1.1: pesquisa sob demanda e memória derivada
+
+Esta revisão incorpora a evolução autorizada em 21/10/2026 e prevalece sobre pressupostos anteriores de consulta exclusiva a snapshots e de apenas cinco ferramentas. Os detalhes implementados estão em [Pesquisa sob demanda](PESQUISA_SOB_DEMANDA.md); requisitos mais amplos abaixo continuam sendo metas quando não constarem da entrega.
+
+- O snapshot local semântico continua íntegro e reproduzível. Um cache incremental separado recebe arquivos obtidos sob demanda, sem reimportação nem reindexação vetorial do snapshot por pergunta.
+- O catálogo descreve repositórios, assuntos, caminhos, capacidade de coleta e política de atualização. Na primeira extensão, somente OWASP tem descoberta e coleta sob demanda; outras fontes usam o snapshot existente.
+- `knowledge_research` consulta três camadas separadas: snapshot, cache de evidências e memória derivada. A descoberta OWASP compara a pergunta localmente com nomes de arquivos e aliases; não é busca semântica de todo o GitHub. O cache e a memória usam recuperação lexical.
+- Os modos `auto`, `refresh` e `offline` tornam explícita a política de acesso externo. TTL de 24 horas não comprova atualização a cada pergunta; falha de rede ou limite de API permanece visível.
+- A memória é escrita somente por `knowledge_remember`, com referências verificáveis. Todas as notas permanecem `derived_unverified`, têm validade e podem ser excluídas por `knowledge_forget`. Não há captura automática de conversas, treinamento de modelos ou compartilhamento entre instalações.
+- Clientes apontando para o mesmo diretório de dados compartilham notas e evidências; não há isolamento entre esses clientes. O uso previsto continua restrito a conhecimento reutilizável sem dados pessoais ou segredos.
+- O contrato passa a dez ferramentas, com anotações de leitura, escrita, exclusão e acesso externo coerentes com cada operação. Nenhuma delas executa scanners, shell ou comandos contidos nas fontes.
+
+A extensão passou pela suíte geral de 216 testes, por verificações focadas posteriores e por teste real do SDK MCP, descritos em [Implementação](IMPLEMENTACAO.md). Os 24 pré-requisitos de recuperação foram repetidos e passaram; as seis pendências da matriz anterior permanecem. Isso não equivale à aprovação das 30 respostas dos clientes. O aplicativo Claude permanece sem homologação.
 
 ## 1. Objetivo e limites da primeira versão
 
@@ -54,8 +68,9 @@ Isso não é um mecanismo capaz de provar criptograficamente qual modelo está f
 | Armazenar documentos, entidades e índices | Computador do usuário. |
 | Gerar embeddings, buscar e reordenar | Computador do usuário no perfil padrão. |
 | Instalar dependências e obter os modelos | Download inicial das origens aprovadas. |
-| Atualizar fontes | Requisições às fontes cadastradas, quando a sincronização for executada. |
-| Responder usando GPT ou Claude | O cliente pode enviar a pergunta e as evidências recuperadas ao provedor do modelo. |
+| Atualizar fontes | Sincronização administrativa do snapshot ou coleta OWASP por `knowledge_research` em `auto`/`refresh`. Perguntas não são enviadas ao GitHub; ele recebe requisições a metadados e caminhos públicos. |
+| Guardar memória | Notas explicitamente submetidas ficam no diretório de dados da instalação, com referências e expiração. |
+| Responder usando GPT ou Claude | O cliente pode enviar a pergunta, as evidências e as notas recuperadas ao provedor do modelo. |
 
 A recuperação poderá funcionar sem internet depois da preparação da base e dos modelos. Isso não torna a conversa com GPT ou Claude disponível offline. Assinatura, conta ou cobrança do cliente escolhido continuam independentes do servidor MCP.
 
@@ -75,9 +90,18 @@ flowchart TB
     F[Fontes cadastradas] --> S
     S --> P[Snapshot preparado]
     P --> K
+    K --> R[Pesquisa sob demanda]
+    R --> C[Catálogo de repositórios e caminhos]
+    C --> W[OWASP no GitHub em revisão fixa]
+    W --> B[Cache local de evidências]
+    B --> E
+    K --> M[Memória derivada com referências]
+    M --> E
 ```
 
 O núcleo será um processo local por diretório de dados. Ele manterá os modelos carregados e será o único proprietário do armazenamento vetorial. Adaptadores stdio de GPT e Claude poderão compartilhar esse núcleo, evitando que cada cliente carregue uma cópia completa da base e dos modelos.
+
+A pesquisa sob demanda usa armazenamento SQLite separado do snapshot e trava própria. A espera pela rede não mantém a trava de consulta do índice vetorial; outra pesquisa ou operação de memória recebe `BUSY` enquanto essa operação estiver ativa. A etapa de busca no snapshot ainda compartilha o modelo e seus limites de concorrência.
 
 A comunicação interna entre adaptador e núcleo utilizará loopback autenticado: endereço 127.0.0.1, porta registrada em arquivo de estado privado e token aleatório por instalação. Esse endereço interno não será um endpoint público MCP. Não será permitido escutar em 0.0.0.0, aceitar acesso da rede local ou habilitar CORS para páginas arbitrárias. O token de consulta não dará acesso à administração.
 
@@ -256,15 +280,15 @@ Uma busca sem bons resultados devolverá no_results ou partial, com cobertura e 
 
 ### 7.2 Atualidade e consultas externas
 
-As ferramentas MCP da primeira versão consultarão apenas o snapshot local publicado. Elas não receberão URLs livres, não farão navegação arbitrária e não dispararão sincronização silenciosa.
+As cinco ferramentas originais continuam consultando somente o snapshot local publicado. A extensão `knowledge_research` acessa fontes aprovadas em modos explícitos e mantém seus resultados separados do snapshot. Nenhuma ferramenta recebe URLs livres ou faz navegação arbitrária.
 
-Quando uma pergunta exigir informação mais atual que a disponível, a resposta informará a data e a necessidade de atualização. O usuário poderá executar a sincronização administrativa e consultar novamente. Isso mantém a consulta previsível e separa recuperação de alteração da base.
+Em `auto`, o catálogo OWASP é reutilizado por até 24 horas e arquivos selecionados ainda ausentes podem ser coletados na revisão conhecida. `refresh` solicita nova verificação da branch e respeita o intervalo de nova tentativa após falhas; `offline` impede requisições remotas. O servidor preserva URL, revisão, SHA-256, instante da verificação e estado de cada evidência. Um resultado offline recente não comprova que a origem permaneceu inalterada desde aquela verificação.
 
-Consulta online sob demanda por ID é uma extensão futura: deverá ser explícita, limitada a origens cadastradas, desativável e acompanhada de estado de verificação. Não é requisito da primeira entrega.
+Somente o adaptador OWASP está incluído nesta extensão. Atualização sob demanda de CVE, ATT&CK, Sigma e KEV exige adaptadores e testes próprios; arquivos agregados não serão tratados como arquivos independentes fictícios. A sincronização administrativa dos snapshots permanece disponível.
 
 ## 8. Contrato MCP
 
-Todas as ferramentas serão de consulta. O núcleo validará argumentos independentemente das anotações MCP. Não haverá ferramenta genérica de shell, SQL, leitura por caminho arbitrário, download por URL ou administração.
+O contrato tem cinco consultas originais somente leitura e cinco operações adicionais com permissões específicas. O núcleo valida argumentos independentemente das anotações MCP. Pesquisa pode persistir evidências, gravação de memória é explícita e exclusão alcança somente uma nota pelo ID. Não há ferramenta genérica de shell, SQL, leitura por caminho arbitrário, download por URL ou administração do snapshot.
 
 | Ferramenta | Entradas | Saída principal |
 | --- | --- | --- |
@@ -273,6 +297,13 @@ Todas as ferramentas serão de consulta. O núcleo validará argumentos independ
 | knowledge_get_document | document_id; revision opcional; section_id ou cursor opcional; snapshot_id opcional | Original ou seção, formato, hash e indicador de completude. |
 | knowledge_get_related | entity_id; relation_types opcionais; limit; cursor; snapshot_id opcional | Relações documentadas e evidência de cada ligação, com profundidade máxima de um salto. |
 | knowledge_status | source_id opcional | Snapshot, fontes, seleção, contagens, últimas verificações, falhas e perfis disponíveis. |
+| knowledge_catalog | Sem argumentos | Fontes cadastradas, capacidades, catálogo OWASP e contagens locais; não verifica a rede. |
+| knowledge_research | query; source_ids; freshness auto/refresh/offline; limit 1..3 por camada; path OWASP opcional | layers.snapshot, layers.source_cache e layers.memory, com avisos e procedência separados; sem cursor federado. |
+| knowledge_get_cached_document | document_id; revision opcional na primeira parte; offset padrão 0 | Original do cache em partes de até 9.000 bytes; next_offset, last_part, hashes e revisão fixa. |
+| knowledge_remember | text até 4.000 caracteres; references de 1 a 8; ttl_days de 1 a 90, padrão 30 | Nota explicitamente derivada, referências revalidadas, ID e expiração; duplicata não prorroga validade. |
+| knowledge_forget | memory_id | Exclusão da nota indicada e de sua entrada de busca; evidências preservadas. |
+
+Os filtros, cursores e o envelope descritos abaixo referem-se às cinco ferramentas originais. A extensão usa `schema_version: 1.1`, preserva o envelope de cada camada e distingue `freshness` do cache (`current`, `stale`, `superseded`, `unknown`) do frescor do snapshot (`fresh`, `stale`, `unknown`). `knowledge_research` não funde escores de algoritmos distintos e não apresenta a nota e sua fonte como duas confirmações independentes.
 
 Filtros permitidos: source_ids, content_types, domains, platforms, product, entity_ids, lifecycle_status, published_from, published_to, kev_presence e cvss. O objeto cvss aceitará version, provider, operator e value. Filtros não suportados ou contraditórios geram erro explícito, sem serem ignorados.
 
@@ -302,7 +333,7 @@ Erros de protocolo seguem o SDK MCP. Falhas de domínio serão estruturadas com 
 
 Cursores estarão vinculados à operação, consulta normalizada ou ID da entidade/documento, filtros, ordenação, perfil de busca e snapshot. Reutilização com parâmetros incompatíveis será rejeitada. A lista ordenada ficará fixada durante a paginação, com desempate estável por ID, evitando omissões e repetições. Se a geração ou o cursor expirar, o sistema retornará erro explícito, sem continuar em outra versão silenciosamente. Métodos que recebem snapshot_id permitirão que a IA busque, abra e relacione documentos da mesma geração.
 
-O resultado terá estrutura legível por máquina e uma representação textual compacta nos clientes homologados. Não dependerá de recursos opcionais de interface para mostrar fontes. As cinco ferramentas deverão funcionar mesmo quando o aplicativo não apresentar resources ou prompts MCP.
+O resultado terá estrutura legível por máquina e uma representação textual compacta nos clientes homologados. Não dependerá de recursos opcionais de interface para mostrar fontes. As dez ferramentas deverão funcionar mesmo quando o aplicativo não apresentar resources ou prompts MCP.
 
 ## 9. Orientação para as respostas dos clientes
 
@@ -332,6 +363,8 @@ Fontes recuperadas são dados não confiáveis, inclusive quando hospedadas em r
 | Banco | Consultas parametrizadas; filtros validados; índices publicados de forma consistente. |
 | Comunicação local | Loopback, token de consulta, validação de Host/Origin, arquivos de estado privados e nenhuma interface de administração exposta ao cliente MCP. |
 | Documentos | Acesso somente por IDs registrados; nenhuma leitura arbitrária de arquivos pessoais. |
+| Pesquisa sob demanda | Somente endpoints e caminhos OWASP aprovados, revisão fixa, requisições limitadas, sem seguir URLs contidas nas fontes. Falhas não renovam a verificação. |
+| Memória | Notas derivadas com referência obrigatória, quotas, prazo e exclusão; evidência referenciada não é prova de veracidade da conclusão. |
 | Logs | Metadados operacionais e tempos por padrão; sem tokens, segredos, fragmentos de perguntas/resultados, cabeçalhos de autenticação ou corpos de erro sensíveis. Diagnóstico detalhado exige configuração explícita e redação de segredos. |
 | Testes | Fixtures maliciosos e dados sintéticos isolados do corpus de uso. |
 
@@ -410,7 +443,7 @@ Serão avaliadas três camadas separadas: recuperação direta, contrato MCP e u
 | Fidelidade dos clientes | Pelo menos 95% das afirmações factuais verificáveis sustentadas; 100% das afirmações críticas. |
 | Citações dos clientes | 100% apontam para registros existentes; pelo menos 95% sustentam a afirmação associada. |
 | Falha de atualização | 100% dos cenários previstos preservam snapshot válido e informam a falha relevante. |
-| Contrato MCP | As cinco ferramentas passam validação de entrada, saída, erro, limites e paginação. |
+| Contrato MCP | As dez ferramentas passam validação de entrada, saída, erro e limites; paginação apenas nas operações que a oferecem. Escritas, exclusão e acesso externo têm anotações próprias. |
 | Compatibilidade | Toda combinação anunciada de sistema, aplicativo e versão passa o roteiro de conexão e consulta. |
 
 Unidade de evidência é um fato ou requisito anotado, com um ou mais documentos aceitáveis. Recall@10 será a fração dessas unidades cobertas pelas passagens efetivamente entregues nos dez primeiros grupos de documentos; documentos duplicados não contam duas vezes. O ensaio chamará knowledge_search com limit=10, independentemente do padrão de cinco resultados da interface. Casos de ausência, diagnóstico impossível e ações fora do escopo não entram no denominador de ranking.
@@ -464,7 +497,7 @@ Base, caches, modelos, tokens e logs ficarão fora do Git. Remover a instalaçã
 | 1 | Caracterização do hardware, corpus piloto e gabaritos congelados | Fontes/revisões identificadas; fixtures e respostas verificáveis; orçamento inicial de recursos documentado. |
 | 2 | Ingestão, originais, entidades e snapshots | Integridade, atualização e recuperação de falhas demonstradas. |
 | 3 | Busca exata, textual, vetorial e relações | Recuperação avaliada no conjunto de desenvolvimento; comparação com e sem reranker; limites de desempenho fixados antes da aceitação. |
-| 4 | Núcleo compartilhado e cinco ferramentas MCP | Contratos, concorrência, erros e paginação aprovados. |
+| 4 | Núcleo compartilhado, cinco consultas originais e extensão de cinco ferramentas | Contratos, concorrência, erros, cache, memória e paginação aplicável aprovados. |
 | 5 | Homologação GPT/OpenAI e Claude | Matriz de clientes e avaliação das respostas aprovadas. |
 | 6 | Empacotamento e preparação do GitHub | Instalação limpa reproduzível, documentação, licenças e relatório de avaliação completos. |
 

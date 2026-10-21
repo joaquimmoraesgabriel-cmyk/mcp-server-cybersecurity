@@ -1,7 +1,7 @@
 """Private loopback transport shared by local MCP adapters.
 
 The HTTP listener is an implementation detail, not a remote MCP endpoint. Only
-the five read-only knowledge operations are reachable. In-flight inference is
+explicit knowledge and derived-memory operations are reachable. In-flight inference is
 not forcibly cancelled: socket and queue deadlines bound waiting, not compute.
 """
 
@@ -29,10 +29,12 @@ from typing import Any
 from filelock import FileLock
 from filelock import Timeout as LockTimeout
 
+from .research import EXTENDED_TOOLS
+
 TOOLS = frozenset({
     "knowledge_search", "knowledge_get_entity", "knowledge_get_document",
     "knowledge_get_related", "knowledge_status",
-})
+}) | frozenset(EXTENDED_TOOLS)
 PROTOCOL_VERSION = 1
 MAX_REQUEST_BYTES = 64 * 1024
 MAX_RESPONSE_BYTES = 4 * 1024 * 1024
@@ -259,6 +261,12 @@ class CoreClient:
     def call(self, tool: str, arguments: dict[str, Any]) -> dict[str, Any]:
         if tool not in TOOLS or not isinstance(arguments, dict):
             return _error("INVALID_ARGUMENT", "Unsupported knowledge operation or arguments.")
+        if tool in EXTENDED_TOOLS:
+            try:
+                if self.health().get("tool_contract", 1) < 2:
+                    return _error("CORE_UPGRADE_REQUIRED", "Reinicie o núcleo local para habilitar pesquisa sob demanda e memória.", False)
+            except RuntimeError:
+                return _error("INDEX_UNAVAILABLE", "The expected local core is unavailable.", True)
         return self._request("POST", "/call", {"tool": tool, "arguments": arguments})
 
 
@@ -428,6 +436,7 @@ class _CoreHandler(BaseHTTPRequestHandler):
             return
         self._send(200, {
             "service": "cyber-rag-core", "protocol_version": PROTOCOL_VERSION,
+            "tool_contract": 2,
             "instance_id": self.server.instance_id, "data_dir_id": self.server.data_dir_id,
         })
 
@@ -468,7 +477,10 @@ class _CoreHandler(BaseHTTPRequestHandler):
             self._send(504, _error("TIMEOUT", "Request body deadline exceeded.", True))
             return
         self.read_deadline.cancel()
-        if not self.server.dispatch_lock.acquire(timeout=QUEUE_TIMEOUT):
+        # Remote fetches and memory have a separate fail-fast lock in ResearchService.
+        # They must never occupy the snapshot queue while waiting for the network.
+        snapshot_operation = payload["tool"] not in EXTENDED_TOOLS
+        if snapshot_operation and not self.server.dispatch_lock.acquire(timeout=QUEUE_TIMEOUT):
             self._send(503, _error("BUSY", "The local query queue deadline was exceeded.", True))
             return
         try:
@@ -479,7 +491,8 @@ class _CoreHandler(BaseHTTPRequestHandler):
         except Exception:  # noqa: BLE001 - the transport boundary must never expose internal exceptions.
             self._send(503, _error("INDEX_UNAVAILABLE", "The knowledge service is unavailable.", True))
         finally:
-            self.server.dispatch_lock.release()
+            if snapshot_operation:
+                self.server.dispatch_lock.release()
 
     def do_OPTIONS(self):
         self._send(405, _error("INVALID_ARGUMENT", "Browser access is unsupported."))
@@ -557,7 +570,7 @@ def serve_core(data_dir: Path, *, keep_alive: bool = False, warmup: bool = False
     try:
         token = _token(runtime_dir)
         service = KnowledgeService(data_dir)
-        if warmup:
+        if warmup and (data_dir / "active.json").exists():
             print("[cyber-rag] Preparando modelo e indice local. Aguarde antes de conectar os clientes...", file=sys.stderr, flush=True)
             service.warmup()
         server = _CoreHTTPServer(service, token, _data_id(data_dir))

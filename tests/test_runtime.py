@@ -60,6 +60,24 @@ def test_queries_and_health_require_authentication(core):
     assert core[1].calls == []
 
 
+def test_extended_operation_does_not_wait_in_snapshot_queue(core):
+    server, service = core
+    with server.dispatch_lock:
+        status, _, result = request(core, body={"tool": "knowledge_research", "arguments": {"query": "password", "freshness": "offline"}})
+    assert status == 200
+    assert result["status"] == "ok"
+    assert service.calls[0][0] == "knowledge_research"
+
+
+def test_extended_client_detects_old_core_before_sending_write(core, monkeypatch):
+    server, service = core
+    client = runtime.CoreClient(server.server_port, server.query_token, server.instance_id, server.data_dir_id)
+    monkeypatch.setattr(client, "health", lambda: {"tool_contract": 1})
+    result = client.call("knowledge_remember", {"text": "a note", "references": []})
+    assert result["error"]["code"] == "CORE_UPGRADE_REQUIRED"
+    assert not service.calls
+
+
 @pytest.mark.parametrize("headers", [
     {"Host": "evil.example"}, {"Host": "localhost"},
     {"Origin": "https://evil.example"}, {"Origin": "null"},
@@ -283,7 +301,10 @@ def test_two_launchers_start_only_one_real_core(tmp_path, monkeypatch):
         assert clients[0].instance_id == clients[1].instance_id
         assert clients[0].health()["service"] == "cyber-rag-core"
         # Starting the transport does not download or fabricate a knowledge base.
-        assert clients[1].call("knowledge_status", {})["error"]["code"] == "INDEX_UNAVAILABLE"
+        empty = clients[1].call("knowledge_status", {})
+        assert empty["status"] == "ok"
+        assert empty["results"][0]["document_count"] == 0
+        assert not (tmp_path / "active.json").exists()
         state = runtime._read_state(tmp_path / "runtime")
         # Windows venv redirectors can launch the real interpreter with a
         # different PID. The authenticated instance ID is the identity proof.
@@ -301,6 +322,9 @@ def test_two_launchers_start_only_one_real_core(tmp_path, monkeypatch):
 @pytest.mark.parametrize("warmup", [False, True])
 def test_foreground_lifecycle_respects_keep_alive(tmp_path, monkeypatch, keep_alive, warmup):
     from cyber_rag import service as service_module
+
+    if warmup:
+        (tmp_path / "active.json").write_text("{}", encoding="utf-8")
 
     fake = FakeService()
     prepared = []
@@ -350,6 +374,8 @@ def test_foreground_lifecycle_respects_keep_alive(tmp_path, monkeypatch, keep_al
 
 def test_failed_warmup_never_publishes_core_and_releases_resources(tmp_path, monkeypatch):
     from cyber_rag import service as service_module
+
+    (tmp_path / "active.json").write_text("{}", encoding="utf-8")
 
     fake = FakeService()
     closed = threading.Event()

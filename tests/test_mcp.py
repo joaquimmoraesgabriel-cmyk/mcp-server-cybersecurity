@@ -18,14 +18,14 @@ class FakeClient:
 
 
 @pytest.mark.asyncio
-async def test_mcp_contract_has_only_five_readonly_tools(tmp_path):
+async def test_mcp_contract_separates_reads_research_and_memory(tmp_path):
     server = create_server(tmp_path, client=FakeClient())
     tool_list = await server.list_tools()
     assert {tool.name for tool in tool_list} == TOOLS
     for tool in tool_list:
-        assert tool.annotations.readOnlyHint is True
-        assert tool.annotations.destructiveHint is False
-        assert tool.annotations.openWorldHint is False
+        assert tool.annotations.readOnlyHint is (tool.name not in {"knowledge_research", "knowledge_remember", "knowledge_forget"})
+        assert tool.annotations.destructiveHint is (tool.name == "knowledge_forget")
+        assert tool.annotations.openWorldHint is (tool.name == "knowledge_research")
     search = next(tool for tool in tool_list if tool.name == "knowledge_search")
     assert search.inputSchema["required"] == ["query"]
     assert search.inputSchema["properties"]["limit"]["default"] == 5
