@@ -37,6 +37,7 @@ def main(argv=None) -> int:
         command.add_argument("--data-dir", type=Path, help="Diretório local da base (ou CYBER_RAG_DATA_DIR)")
         if name == "core":
             command.add_argument("--keep-alive", action="store_true", help="Manter núcleo em primeiro plano até Ctrl+C, sem saída por inatividade")
+            command.add_argument("--warmup", action="store_true", help="Preparar modelo e índice antes de aceitar consultas")
         if name == "import":
             command.add_argument("manifest", type=Path)
         if name in {"import", "sync-pilot"}:
@@ -61,7 +62,7 @@ def main(argv=None) -> int:
         if args.command == "core":
             from .runtime import serve_core
 
-            serve_core(data_dir, keep_alive=args.keep_alive)
+            serve_core(data_dir, keep_alive=args.keep_alive, warmup=args.warmup)
         elif args.command == "serve":
             from .mcp_server import run_stdio
 

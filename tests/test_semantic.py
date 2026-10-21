@@ -126,8 +126,13 @@ def test_real_vector_rebuild_and_offline_snapshot_switch(real_model_bundle) -> N
 
         first = ingest_documents(directory, documents, sources, embedding_mode="semantic")
         assert first["model"] == model_manifest
+        assert service.warmup() == {"snapshot_id": first["snapshot_id"], "profile": "semantic"}
+        warmed_embedding = service._embedding
+        warmed_vectors = service._vectors
         first_result = service.dispatch("knowledge_search", {"query": query, "limit": 10})
         assert first_result["status"] == "ok", first_result
+        assert service._embedding is warmed_embedding
+        assert service._vectors is warmed_vectors
         assert first_result["snapshot_id"] == first["snapshot_id"]
         assert first_result["retrieval"]["method"] == "exact+bm25+e5+rrf"
         assert any(result["source_id"] == "owasp" for result in first_result["results"])

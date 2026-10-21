@@ -207,6 +207,39 @@ class KnowledgeService:
                 self._vectors = None
                 self._vector_sid = None
 
+    def _prepare_semantic(self, directory, manifest):
+        from qdrant_client import QdrantClient
+
+        from .embeddings import LocalEmbedding
+
+        if self._vector_sid != manifest["snapshot_id"]:
+            if self._vectors is not None:
+                self._vectors.close()
+            self._vectors = None
+            self._vector_sid = None
+            self._vectors = QdrantClient(
+                path=str(directory / "vectors"), force_disable_check_same_thread=True
+            )
+            self._vector_sid = manifest["snapshot_id"]
+        if self._embedding is None or self._embedding.manifest != manifest["model"]:
+            self._embedding = LocalEmbedding(self.data_dir, manifest["model"])
+
+    def warmup(self):
+        """Prepare and exercise local retrieval before accepting MCP requests."""
+        with self._lock:
+            sid, directory = snapshot_path(self.data_dir)
+            with closing(connect_snapshot(directory)) as db:
+                manifest = json.loads(
+                    db.execute("SELECT value FROM snapshot_meta WHERE key='manifest'").fetchone()[0]
+                )
+            if manifest["profile"] == "semantic":
+                self._prepare_semantic(directory, manifest)
+                vector = self._embedding.encode(["initialization"], query=True)[0]
+                self._vectors.query_points(
+                    collection_name="chunks", query=vector, limit=1, with_payload=False
+                )
+            return {"snapshot_id": sid, "profile": manifest["profile"]}
+
     def dispatch(self, name: str, arguments: dict) -> dict:
         envelope = {
             "schema_version": "1.0",
@@ -666,19 +699,9 @@ class KnowledgeService:
                         break
             rankings.append(lexical)
         if manifest["profile"] == "semantic" and not exact and eligible:
-            from qdrant_client import QdrantClient, models
+            from qdrant_client import models
 
-            from .embeddings import LocalEmbedding
-
-            if self._vector_sid != manifest["snapshot_id"]:
-                if self._vectors is not None:
-                    self._vectors.close()
-                self._vectors = QdrantClient(
-                    path=str(directory / "vectors"), force_disable_check_same_thread=True
-                )
-                self._vector_sid = manifest["snapshot_id"]
-            if self._embedding is None or self._embedding.manifest != manifest["model"]:
-                self._embedding = LocalEmbedding(self.data_dir, manifest["model"])
+            self._prepare_semantic(directory, manifest)
             vector = self._embedding.encode([query], query=True)[0]
             found = self._vectors.query_points(
                 collection_name="chunks",

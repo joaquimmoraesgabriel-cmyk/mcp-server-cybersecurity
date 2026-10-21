@@ -81,10 +81,12 @@ O cliente inicia `python -m cyber_rag serve`. Esse adaptador inicia ou reutiliza
 
 ```powershell
 $env:PYTHONPATH = (Join-Path (Get-Location) 'src')
-.\.venv\Scripts\python.exe -m cyber_rag core --data-dir .\data --keep-alive
+.\.venv\Scripts\python.exe -m cyber_rag core --data-dir .\data --keep-alive --warmup
 ```
 
-Mantenha essa janela aberta e depois conecte os clientes com os blocos gerados acima. `Ctrl+C` encerra o núcleo. `--keep-alive` desativa a saída por inatividade. Se um núcleo automático já estiver ativo nessa base, o comando recusa iniciar outro; feche as consultas e aguarde a saída por inatividade antes de iniciar o modo manual.
+Espere a mensagem `[cyber-rag] Pronto`, mantenha essa janela aberta e depois conecte os clientes com os blocos gerados acima. `--warmup` carrega o modelo, abre o índice e executa uma consulta de preparação antes de disponibilizar o núcleo. Essa preparação pode demorar mais que o prazo de uma ferramenta MCP; acontece antes de aceitar consultas. `Ctrl+C` encerra o núcleo. `--keep-alive` desativa a saída por inatividade. Se outro núcleo já estiver ativo nessa base, o comando recusa iniciar uma segunda instância; encerre o núcleo manual na janela que o iniciou ou aguarde a saída por inatividade do núcleo automático.
+
+`knowledge_status` descreve a base em disco; o perfil `semantic` não comprova que o modelo já está carregado na memória. No modo automático, a primeira busca ainda faz essa carga. Para validar a busca sem esperar pela carga dentro de uma chamada MCP, use o modo manual com `--warmup`.
 
 Alguns clientes Windows colocam processos descendentes em um Job Object que encerra toda a árvore ao fechar o aplicativo. Por isso, a independência do núcleo iniciado automaticamente em relação ao cliente não está garantida nesta alfa. O núcleo manual fica fora dessa árvore. Se o núcleo reiniciar, cursores em memória expiram e a primeira consulta recarrega o modelo.
 

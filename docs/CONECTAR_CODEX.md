@@ -9,12 +9,12 @@ Na máquina de desenvolvimento original, o ambiente e a base semântica já est�
 ```powershell
 Set-Location 'D:\mcp-server-cybersecurity'
 $env:PYTHONPATH = (Join-Path (Get-Location) 'src')
-.\.venv\Scripts\python.exe -m cyber_rag core --data-dir .\data --keep-alive
+.\.venv\Scripts\python.exe -m cyber_rag core --data-dir .\data --keep-alive --warmup
 ```
 
-Deixe essa janela aberta. O comando permanece em execução; uma janela sem novas mensagens é normal. `Ctrl+C` encerra o núcleo. Se aparecer que outro núcleo já possui a base, ele já está em execução: use esse núcleo ou aguarde sua saída por inatividade antes de iniciar o modo manual. Não é necessário iniciar outra instância para cada cliente.
+Espere a mensagem `[cyber-rag] Pronto` e deixe essa janela aberta. `--warmup` carrega o modelo, abre o índice e exercita a busca antes de aceitar consultas MCP. Uma falha de preparação encerra o comando sem anunciar que o núcleo está pronto. `Ctrl+C` encerra o núcleo. Se aparecer que outro núcleo já possui a base, ele já está em execução: encerre o núcleo manual na janela que o iniciou ou aguarde a saída por inatividade do núcleo automático antes de iniciar este comando. Não é necessário iniciar outra instância para cada cliente.
 
-O modo manual mantém o núcleo disponível quando um cliente Windows fecha sua árvore de processos. A primeira busca semântica carrega o modelo; pode levar dezenas de segundos. Depois, o núcleo reutiliza o modelo.
+O modo manual mantém o núcleo disponível quando um cliente Windows fecha sua árvore de processos. A preparação pode demorar mais que os 120 segundos do prazo interno de uma consulta, dependendo da máquina; espere a confirmação de prontidão antes de validar no Codex. Depois, o núcleo reutiliza o modelo. O perfil `semantic` de `knowledge_status` descreve o índice em disco e não indica, sozinho, que o modelo já está carregado.
 
 ## 2. Adicionar a configuração do Codex
 
@@ -84,7 +84,7 @@ Verifique se o Codex realmente chamou as ferramentas `knowledge_*`, se o resulta
 | `No module named cyber_rag` | Confira `PYTHONPATH`, a pasta `src` e o executável da `.venv`. |
 | Erro ao ler TOML | Confira barras e aspas; evite duplicar `[mcp_servers.cyber-rag]`. |
 | `INDEX_UNAVAILABLE` | Confira os caminhos da base e execute `doctor`; em um clone novo, prepare o corpus antes de consultar. |
-| `TIMEOUT` na primeira busca | Confira `tool_timeout_sec = 150`, mantenha o núcleo aberto, aguarde a carga em andamento e tente novamente. |
+| `TIMEOUT` na primeira busca | A chamada expirou, mas a carga pode continuar no núcleo; uma tentativa imediata pode receber `BUSY`. Nas próximas inicializações, use `--warmup` e espere `Pronto` antes de consultar. Mantenha `tool_timeout_sec = 150`. |
 | `BUSY` | Aguarde a operação atual e repita; inferência e índice vetorial são serializados nesta alfa. |
 
 Para conferir ambiente e executar o piloto fora da interface do Codex, use o segundo PowerShell com `PYTHONPATH` configurado:

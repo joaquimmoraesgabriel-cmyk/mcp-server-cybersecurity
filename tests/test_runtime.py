@@ -298,10 +298,18 @@ def test_two_launchers_start_only_one_real_core(tmp_path, monkeypatch):
 
 
 @pytest.mark.parametrize("keep_alive", [False, True])
-def test_foreground_lifecycle_respects_keep_alive(tmp_path, monkeypatch, keep_alive):
+@pytest.mark.parametrize("warmup", [False, True])
+def test_foreground_lifecycle_respects_keep_alive(tmp_path, monkeypatch, keep_alive, warmup):
     from cyber_rag import service as service_module
 
     fake = FakeService()
+    prepared = []
+
+    def prepare():
+        assert runtime._read_state(tmp_path / "runtime") is None
+        prepared.append(True)
+
+    fake.warmup = prepare
     closed = threading.Event()
     fake.close = closed.set
     monkeypatch.setattr(service_module, "KnowledgeService", lambda _: fake)
@@ -312,13 +320,14 @@ def test_foreground_lifecycle_respects_keep_alive(tmp_path, monkeypatch, keep_al
     servers = []
 
     def capture_server(*args):
+        assert prepared == ([True] if warmup else [])
         server = original_server(*args)
         servers.append(server)
         started.set()
         return server
 
     monkeypatch.setattr(runtime, "_CoreHTTPServer", capture_server)
-    thread = threading.Thread(target=runtime.serve_core, args=(tmp_path,), kwargs={"keep_alive": keep_alive}, daemon=True)
+    thread = threading.Thread(target=runtime.serve_core, args=(tmp_path,), kwargs={"keep_alive": keep_alive, "warmup": warmup}, daemon=True)
     thread.start()
     try:
         assert started.wait(5)
@@ -337,3 +346,23 @@ def test_foreground_lifecycle_respects_keep_alive(tmp_path, monkeypatch, keep_al
         if thread.is_alive() and servers:
             servers[0].shutdown()
             thread.join(timeout=3)
+
+
+def test_failed_warmup_never_publishes_core_and_releases_resources(tmp_path, monkeypatch):
+    from cyber_rag import service as service_module
+
+    fake = FakeService()
+    closed = threading.Event()
+    fake.close = closed.set
+
+    def fail_warmup():
+        raise RuntimeError("Model unavailable")
+
+    fake.warmup = fail_warmup
+    monkeypatch.setattr(service_module, "KnowledgeService", lambda _: fake)
+    with pytest.raises(RuntimeError, match="Model unavailable"):
+        runtime.serve_core(tmp_path, warmup=True)
+    assert closed.is_set()
+    assert runtime._read_state(tmp_path / "runtime") is None
+    with runtime.FileLock(str(tmp_path / "runtime" / "core.lock"), timeout=0):
+        pass

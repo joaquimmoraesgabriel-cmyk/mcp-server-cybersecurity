@@ -27,6 +27,20 @@ def test_exact_missing_is_not_substituted(prepared):
         assert result["results"] == []
 
 
+def test_lexical_warmup_needs_no_embedding(prepared):
+    service, _, _, manifest = prepared
+    assert service.warmup() == {"snapshot_id": manifest["snapshot_id"], "profile": "lexical"}
+    assert service._embedding is None
+    assert service._vectors is None
+    assert service.dispatch("knowledge_search", {"query": "PowerShell"})["results"]
+
+
+def test_warmup_without_base_fails_explicitly(tmp_path):
+    service = KnowledgeService(tmp_path)
+    with pytest.raises(KnowledgeError):
+        service.warmup()
+
+
 def test_rejected_records_excluded_from_general_search_but_exact_preserved(prepared):
     service, _, _, _ = prepared
     general = service.dispatch("knowledge_search", {"query": "CVE", "limit": 20})

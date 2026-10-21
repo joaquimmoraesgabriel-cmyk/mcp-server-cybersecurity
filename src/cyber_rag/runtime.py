@@ -539,7 +539,7 @@ def ensure_core(data_dir: Path) -> CoreClient:
         raise RuntimeError("Another local core launcher is busy; retry shortly.") from None
 
 
-def serve_core(data_dir: Path, *, keep_alive: bool = False) -> None:
+def serve_core(data_dir: Path, *, keep_alive: bool = False, warmup: bool = False) -> None:
     """Run the singleton read-only core; administration remains outside HTTP."""
     from cyber_rag.service import KnowledgeService
 
@@ -557,6 +557,9 @@ def serve_core(data_dir: Path, *, keep_alive: bool = False) -> None:
     try:
         token = _token(runtime_dir)
         service = KnowledgeService(data_dir)
+        if warmup:
+            print("[cyber-rag] Preparando modelo e indice local. Aguarde antes de conectar os clientes...", file=sys.stderr, flush=True)
+            service.warmup()
         server = _CoreHTTPServer(service, token, _data_id(data_dir))
         state = {
             "protocol_version": PROTOCOL_VERSION, "pid": os.getpid(),
@@ -592,6 +595,8 @@ def serve_core(data_dir: Path, *, keep_alive: bool = False) -> None:
 
         if not keep_alive:
             threading.Thread(target=idle_monitor, daemon=True, name="cyber-rag-idle").start()
+        if warmup:
+            print("[cyber-rag] Pronto. Modelo e indice preparados para consultas.", file=sys.stderr, flush=True)
         server.serve_forever(poll_interval=0.2)
     finally:
         stop_event.set()
