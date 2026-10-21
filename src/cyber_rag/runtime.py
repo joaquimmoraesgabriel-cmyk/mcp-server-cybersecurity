@@ -29,12 +29,17 @@ from typing import Any
 from filelock import FileLock
 from filelock import Timeout as LockTimeout
 
-from .research import EXTENDED_TOOLS
+from .research import EXTENDED_TOOLS, TOOL_CONTRACT
 
-TOOLS = frozenset({
-    "knowledge_search", "knowledge_get_entity", "knowledge_get_document",
-    "knowledge_get_related", "knowledge_status",
-}) | frozenset(EXTENDED_TOOLS)
+TOOLS = frozenset(
+    {
+        "knowledge_search",
+        "knowledge_get_entity",
+        "knowledge_get_document",
+        "knowledge_get_related",
+        "knowledge_status",
+    }
+) | frozenset(EXTENDED_TOOLS)
 PROTOCOL_VERSION = 1
 MAX_REQUEST_BYTES = 64 * 1024
 MAX_RESPONSE_BYTES = 4 * 1024 * 1024
@@ -74,7 +79,8 @@ def _finish_rejected_socket(connection: socket.socket) -> None:
 
 def _error(code: str, message: str, retryable: bool = False) -> dict[str, Any]:
     return {
-        "schema_version": "1.0", "request_id": str(uuid.uuid4()),
+        "schema_version": "1.0",
+        "request_id": str(uuid.uuid4()),
         "status": "error",
         "error": {"code": code, "message": message, "retryable": retryable},
     }
@@ -90,8 +96,11 @@ def _request_headers(method: str, path: str, body: bytes, port: int, token: str)
     digest = hashlib.sha256(body).hexdigest()
     return {
         "Authorization": "HMAC " + _signature(token, method, path, str(port), nonce, timestamp, digest),
-        "X-Request-Nonce": nonce, "X-Request-Time": timestamp, "X-Body-SHA256": digest,
-        "Content-Type": "application/json", "Connection": "close",
+        "X-Request-Nonce": nonce,
+        "X-Request-Time": timestamp,
+        "X-Body-SHA256": digest,
+        "Content-Type": "application/json",
+        "Connection": "close",
     }
 
 
@@ -105,9 +114,20 @@ def _windows_private_directory(path: Path) -> None:
     kernel.CloseHandle.argtypes = [wintypes.HANDLE]
     kernel.LocalFree.argtypes = [ctypes.c_void_p]
     advapi.OpenProcessToken.argtypes = [wintypes.HANDLE, wintypes.DWORD, ctypes.POINTER(wintypes.HANDLE)]
-    advapi.GetTokenInformation.argtypes = [wintypes.HANDLE, ctypes.c_int, ctypes.c_void_p, wintypes.DWORD, ctypes.POINTER(wintypes.DWORD)]
+    advapi.GetTokenInformation.argtypes = [
+        wintypes.HANDLE,
+        ctypes.c_int,
+        ctypes.c_void_p,
+        wintypes.DWORD,
+        ctypes.POINTER(wintypes.DWORD),
+    ]
     advapi.ConvertSidToStringSidW.argtypes = [ctypes.c_void_p, ctypes.POINTER(wintypes.LPWSTR)]
-    advapi.ConvertStringSecurityDescriptorToSecurityDescriptorW.argtypes = [wintypes.LPCWSTR, wintypes.DWORD, ctypes.POINTER(ctypes.c_void_p), ctypes.c_void_p]
+    advapi.ConvertStringSecurityDescriptorToSecurityDescriptorW.argtypes = [
+        wintypes.LPCWSTR,
+        wintypes.DWORD,
+        ctypes.POINTER(ctypes.c_void_p),
+        ctypes.c_void_p,
+    ]
     advapi.SetFileSecurityW.argtypes = [wintypes.LPCWSTR, wintypes.DWORD, ctypes.c_void_p]
     handle = wintypes.HANDLE()
     if not advapi.OpenProcessToken(kernel.GetCurrentProcess(), 0x0008, ctypes.byref(handle)):
@@ -124,7 +144,9 @@ def _windows_private_directory(path: Path) -> None:
         if not advapi.ConvertSidToStringSidW(sid, ctypes.byref(sid_string)):
             raise RuntimeError("Cannot secure the local runtime directory.")
         sddl = f"D:P(A;OICI;FA;;;SY)(A;OICI;FA;;;{sid_string.value})"
-        if not advapi.ConvertStringSecurityDescriptorToSecurityDescriptorW(sddl, 1, ctypes.byref(descriptor), None):
+        if not advapi.ConvertStringSecurityDescriptorToSecurityDescriptorW(
+            sddl, 1, ctypes.byref(descriptor), None
+        ):
             raise RuntimeError("Cannot secure the local runtime directory.")
         # DACL_SECURITY_INFORMATION | PROTECTED_DACL_SECURITY_INFORMATION.
         if not advapi.SetFileSecurityW(str(path), 0x80000004, descriptor):
@@ -211,17 +233,25 @@ def _read_state(runtime_dir: Path) -> dict[str, Any] | None:
 class CoreClient:
     """Client for a fixed authenticated loopback endpoint; it never uses proxies."""
 
-    def __init__(self, port: int, token: str, instance_id: str, data_dir_id: str, *, timeout: float = CLIENT_TIMEOUT):
+    def __init__(
+        self, port: int, token: str, instance_id: str, data_dir_id: str, *, timeout: float = CLIENT_TIMEOUT
+    ):
         self.port = port
         self._token = token
         self.instance_id = instance_id
         self.data_dir_id = data_dir_id
         self.timeout = timeout
 
-    def _request(self, method: str, path: str, payload: dict[str, Any] | None = None, *, timeout: float | None = None) -> dict[str, Any]:
+    def _request(
+        self, method: str, path: str, payload: dict[str, Any] | None = None, *, timeout: float | None = None
+    ) -> dict[str, Any]:
         connection = http.client.HTTPConnection("127.0.0.1", self.port, timeout=timeout or self.timeout)
         try:
-            body = json.dumps(payload, ensure_ascii=False, allow_nan=False).encode("utf-8") if payload is not None else None
+            body = (
+                json.dumps(payload, ensure_ascii=False, allow_nan=False).encode("utf-8")
+                if payload is not None
+                else None
+            )
             if body is not None and len(body) > MAX_REQUEST_BYTES:
                 return _error("INVALID_ARGUMENT", "Request exceeds the local transport limit.")
             headers = _request_headers(method, path, body or b"", self.port, self._token)
@@ -230,14 +260,18 @@ class CoreClient:
             raw = response.read(MAX_RESPONSE_BYTES + 1)
             if len(raw) > MAX_RESPONSE_BYTES:
                 return _error("INDEX_UNAVAILABLE", "The local core returned an invalid response.", True)
-            expected = _signature(self._token, headers["X-Request-Nonce"], str(response.status), hashlib.sha256(raw).hexdigest())
+            expected = _signature(
+                self._token, headers["X-Request-Nonce"], str(response.status), hashlib.sha256(raw).hexdigest()
+            )
             signature = response.getheader("X-Response-Signature", "")
             if not hmac.compare_digest(signature, expected):
                 # Busy sockets are rejected before parsing headers. Treat that as
                 # busy without accepting any unauthenticated response data.
                 if response.status == 503:
                     return _error("BUSY", "The local core could not accept this request.", True)
-                return _error("INDEX_UNAVAILABLE", "The local core response could not be authenticated.", True)
+                return _error(
+                    "INDEX_UNAVAILABLE", "The local core response could not be authenticated.", True
+                )
             result = json.loads(raw)
             if not isinstance(result, dict):
                 raise TypeError("Invalid response")
@@ -253,8 +287,12 @@ class CoreClient:
 
     def health(self) -> dict[str, Any]:
         result = self._request("GET", "/health", timeout=2.0)
-        if (result.get("service") != "cyber-rag-core" or result.get("protocol_version") != PROTOCOL_VERSION
-                or result.get("instance_id") != self.instance_id or result.get("data_dir_id") != self.data_dir_id):
+        if (
+            result.get("service") != "cyber-rag-core"
+            or result.get("protocol_version") != PROTOCOL_VERSION
+            or result.get("instance_id") != self.instance_id
+            or result.get("data_dir_id") != self.data_dir_id
+        ):
             raise RuntimeError("The expected local core is unavailable.")
         return result
 
@@ -263,8 +301,12 @@ class CoreClient:
             return _error("INVALID_ARGUMENT", "Unsupported knowledge operation or arguments.")
         if tool in EXTENDED_TOOLS:
             try:
-                if self.health().get("tool_contract", 1) < 2:
-                    return _error("CORE_UPGRADE_REQUIRED", "Reinicie o núcleo local para habilitar pesquisa sob demanda e memória.", False)
+                if self.health().get("tool_contract", 1) < TOOL_CONTRACT:
+                    return _error(
+                        "CORE_UPGRADE_REQUIRED",
+                        "Reinicie o núcleo local para habilitar pesquisa sob demanda e memória.",
+                        False,
+                    )
             except RuntimeError:
                 return _error("INDEX_UNAVAILABLE", "The expected local core is unavailable.", True)
         return self._request("POST", "/call", {"tool": tool, "arguments": arguments})
@@ -300,7 +342,12 @@ class _CoreHTTPServer(ThreadingHTTPServer):
             try:
                 request.settimeout(0.1)
                 body = json.dumps(_error("BUSY", "The local request queue is full.", True)).encode()
-                request.sendall(b"HTTP/1.1 503 Service Unavailable\r\nConnection: close\r\nContent-Type: application/json\r\nContent-Length: " + str(len(body)).encode() + b"\r\n\r\n" + body)
+                request.sendall(
+                    b"HTTP/1.1 503 Service Unavailable\r\nConnection: close\r\nContent-Type: application/json\r\nContent-Length: "
+                    + str(len(body)).encode()
+                    + b"\r\n\r\n"
+                    + body
+                )
             except OSError:
                 pass
             finally:
@@ -371,13 +418,18 @@ class _CoreHandler(BaseHTTPRequestHandler):
             data = json.dumps(payload, ensure_ascii=False, allow_nan=False).encode("utf-8")
             if len(data) > MAX_RESPONSE_BYTES:
                 status = 503
-                data = json.dumps(_error("INDEX_UNAVAILABLE", "Response exceeds the local transport limit.")).encode()
+                data = json.dumps(
+                    _error("INDEX_UNAVAILABLE", "Response exceeds the local transport limit.")
+                ).encode()
             self.send_response(status)
             self.send_header("Content-Type", "application/json; charset=utf-8")
             self.send_header("Content-Length", str(len(data)))
             nonce = getattr(self, "headers", {}).get("X-Request-Nonce", "")
             if re.fullmatch(r"[a-f0-9]{64}", nonce):
-                self.send_header("X-Response-Signature", _signature(self.server.query_token, nonce, str(status), hashlib.sha256(data).hexdigest()))
+                self.send_header(
+                    "X-Response-Signature",
+                    _signature(self.server.query_token, nonce, str(status), hashlib.sha256(data).hexdigest()),
+                )
             self.send_header("Cache-Control", "no-store")
             self.send_header("X-Content-Type-Options", "nosniff")
             self.send_header("Content-Security-Policy", "default-src 'none'")
@@ -404,19 +456,33 @@ class _CoreHandler(BaseHTTPRequestHandler):
             self._send(401, _error("UNAUTHORIZED", "Local authentication is required."))
             return False
         authorization, nonce, timestamp, digest = [values[name][0] for name in names]
-        valid_shape = (re.fullmatch(r"HMAC [a-f0-9]{64}", authorization)
-                       and re.fullmatch(r"[a-f0-9]{64}", nonce)
-                       and re.fullmatch(r"[0-9]{10,12}", timestamp)
-                       and re.fullmatch(r"[a-f0-9]{64}", digest))
-        expected = "HMAC " + _signature(self.server.query_token, self.command, self.path,
-                                         str(self.server.server_port), nonce, timestamp, digest)
-        if (not valid_shape or abs(time.time() - int(timestamp)) > AUTH_WINDOW
-                or not hmac.compare_digest(authorization.encode("utf-8"), expected.encode("ascii"))):
+        valid_shape = (
+            re.fullmatch(r"HMAC [a-f0-9]{64}", authorization)
+            and re.fullmatch(r"[a-f0-9]{64}", nonce)
+            and re.fullmatch(r"[0-9]{10,12}", timestamp)
+            and re.fullmatch(r"[a-f0-9]{64}", digest)
+        )
+        expected = "HMAC " + _signature(
+            self.server.query_token,
+            self.command,
+            self.path,
+            str(self.server.server_port),
+            nonce,
+            timestamp,
+            digest,
+        )
+        if (
+            not valid_shape
+            or abs(time.time() - int(timestamp)) > AUTH_WINDOW
+            or not hmac.compare_digest(authorization.encode("utf-8"), expected.encode("ascii"))
+        ):
             self._send(401, _error("UNAUTHORIZED", "Local authentication is required."))
             return False
         with self.server.auth_lock:
             now = time.monotonic()
-            self.server.nonces = {value: expiry for value, expiry in self.server.nonces.items() if expiry > now}
+            self.server.nonces = {
+                value: expiry for value, expiry in self.server.nonces.items() if expiry > now
+            }
             if nonce in self.server.nonces:
                 self._send(401, _error("UNAUTHORIZED", "A fresh local authentication proof is required."))
                 return False
@@ -434,11 +500,16 @@ class _CoreHandler(BaseHTTPRequestHandler):
         if self.path != "/health":
             self._send(404, _error("NOT_FOUND", "Unknown local endpoint."))
             return
-        self._send(200, {
-            "service": "cyber-rag-core", "protocol_version": PROTOCOL_VERSION,
-            "tool_contract": 2,
-            "instance_id": self.server.instance_id, "data_dir_id": self.server.data_dir_id,
-        })
+        self._send(
+            200,
+            {
+                "service": "cyber-rag-core",
+                "protocol_version": PROTOCOL_VERSION,
+                "tool_contract": TOOL_CONTRACT,
+                "instance_id": self.server.instance_id,
+                "data_dir_id": self.server.data_dir_id,
+            },
+        )
 
     def do_POST(self):
         if not self._authorize():
@@ -465,10 +536,16 @@ class _CoreHandler(BaseHTTPRequestHandler):
             if not hmac.compare_digest(hashlib.sha256(raw).hexdigest(), self.body_digest):
                 self._send(401, _error("UNAUTHORIZED", "Request body authentication failed."))
                 return
-            payload = json.loads(raw, parse_constant=lambda value: (_ for _ in ()).throw(ValueError("Non-finite number")))
+            payload = json.loads(
+                raw, parse_constant=lambda value: (_ for _ in ()).throw(ValueError("Non-finite number"))
+            )
             if not isinstance(payload, dict) or set(payload) != {"tool", "arguments"}:
                 raise ValueError("Invalid payload")
-            if not isinstance(payload["tool"], str) or payload["tool"] not in TOOLS or not isinstance(payload["arguments"], dict):
+            if (
+                not isinstance(payload["tool"], str)
+                or payload["tool"] not in TOOLS
+                or not isinstance(payload["arguments"], dict)
+            ):
                 raise ValueError("Invalid operation")
         except (ValueError, UnicodeError, RecursionError):
             self._send(400, _error("INVALID_ARGUMENT", "Invalid knowledge operation or JSON arguments."))
@@ -523,8 +600,12 @@ def ensure_core(data_dir: Path) -> CoreClient:
             flags = subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0
             process = subprocess.Popen(
                 [sys.executable, "-m", "cyber_rag", "core", "--data-dir", str(data_dir)],
-                stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-                creationflags=flags, start_new_session=os.name != "nt", close_fds=True,
+                stdin=subprocess.DEVNULL,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                creationflags=flags,
+                start_new_session=os.name != "nt",
+                close_fds=True,
             )
             deadline = time.monotonic() + STARTUP_TIMEOUT
             while time.monotonic() < deadline:
@@ -536,7 +617,9 @@ def ensure_core(data_dir: Path) -> CoreClient:
                         # A foreground core may have won the process lock while
                         # this launcher was starting its child. Wait for its state.
                         with FileLock(str(runtime_dir / "core.lock"), timeout=0):
-                            raise RuntimeError("The local core could not start; run the core command for diagnostics.")
+                            raise RuntimeError(
+                                "The local core could not start; run the core command for diagnostics."
+                            )
                     except LockTimeout:
                         pass
                 time.sleep(0.1)
@@ -571,12 +654,18 @@ def serve_core(data_dir: Path, *, keep_alive: bool = False, warmup: bool = False
         token = _token(runtime_dir)
         service = KnowledgeService(data_dir)
         if warmup and (data_dir / "active.json").exists():
-            print("[cyber-rag] Preparando modelo e indice local. Aguarde antes de conectar os clientes...", file=sys.stderr, flush=True)
+            print(
+                "[cyber-rag] Preparando modelo e indice local. Aguarde antes de conectar os clientes...",
+                file=sys.stderr,
+                flush=True,
+            )
             service.warmup()
         server = _CoreHTTPServer(service, token, _data_id(data_dir))
         state = {
-            "protocol_version": PROTOCOL_VERSION, "pid": os.getpid(),
-            "port": server.server_port, "instance_id": server.instance_id,
+            "protocol_version": PROTOCOL_VERSION,
+            "pid": os.getpid(),
+            "port": server.server_port,
+            "instance_id": server.instance_id,
             "data_dir_id": server.data_dir_id,
         }
         temporary = runtime_dir / f"core-{uuid.uuid4().hex}.tmp"
@@ -601,7 +690,10 @@ def serve_core(data_dir: Path, *, keep_alive: bool = False, warmup: bool = False
         def idle_monitor():
             while not stop_event.wait(IDLE_POLL_INTERVAL):
                 with server.activity_lock:
-                    idle = server.active_requests == 0 and time.monotonic() - server.last_activity >= IDLE_TIMEOUT
+                    idle = (
+                        server.active_requests == 0
+                        and time.monotonic() - server.last_activity >= IDLE_TIMEOUT
+                    )
                 if idle:
                     server.shutdown()
                     return
@@ -609,7 +701,9 @@ def serve_core(data_dir: Path, *, keep_alive: bool = False, warmup: bool = False
         if not keep_alive:
             threading.Thread(target=idle_monitor, daemon=True, name="cyber-rag-idle").start()
         if warmup:
-            print("[cyber-rag] Pronto. Modelo e indice preparados para consultas.", file=sys.stderr, flush=True)
+            print(
+                "[cyber-rag] Pronto. Modelo e indice preparados para consultas.", file=sys.stderr, flush=True
+            )
         server.serve_forever(poll_interval=0.2)
     finally:
         stop_event.set()

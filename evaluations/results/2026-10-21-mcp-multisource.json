@@ -1,0 +1,421 @@
+{
+  "checked_at": "2026-10-21T18:26:36.890053+00:00",
+  "sources": [
+    {
+      "source_id": "owasp",
+      "document_id": "doc_9ba6dbec3488d89997cc18119ba24846",
+      "revision": "08bda3ac496ba5feed72e577de327057d0be4485",
+      "original_hash": "3869a8bf0a5144ef5c741b74fb3739bf10eb16af669c65a60a233aad943a9323",
+      "freshness": "current",
+      "status": "passed"
+    },
+    {
+      "source_id": "attack",
+      "document_id": "doc_2e706a21f0c25b6705e8437b2242f683",
+      "revision": "c2494b29dd268c46a5d0ea0990553e4327cd2253",
+      "original_hash": "81113ba98afa2928f3dcff62022539f7ce30c315c32e14422f11ff95ce534352",
+      "freshness": "current",
+      "status": "passed"
+    },
+    {
+      "source_id": "sigma",
+      "document_id": "doc_3a1f4085b9cbad20d061b6b3594dcf34",
+      "revision": "05d1031f537e830b76da53bae2400c5814c89165",
+      "original_hash": "aaa77a412c21e6e98226e130b58f552c9e1a758bb0ae16822225b2fbc284b10c",
+      "freshness": "current",
+      "status": "passed"
+    },
+    {
+      "source_id": "cve",
+      "document_id": "doc_b3bf52e486cadc3de9da4de5ac88b6ab",
+      "revision": "12b7bde63b49c20b75a66f23351d14695a3d900e",
+      "original_hash": "3339a1f92543f173c820b6037b6cbc4e008723d5ef545be9f073029e871e8d28",
+      "freshness": "current",
+      "status": "passed"
+    },
+    {
+      "source_id": "kev",
+      "document_id": "doc_22431d90f36fdf6e45b007c8d80bed1c",
+      "revision": "fd12990e9c566a1ad3060e1a2073129778f438cc",
+      "original_hash": "ef8fffede5c472001da046c7751beb2a3242458896d0ce08da52b30968b8b56b",
+      "freshness": "current",
+      "status": "passed"
+    },
+    {
+      "source_id": "attack-mobile",
+      "document_id": "doc_aa1d28b5bbf314bbcb4eb1eebbe11965",
+      "revision": "c2494b29dd268c46a5d0ea0990553e4327cd2253",
+      "original_hash": "824f7d8a37e7893b29e4c6ca6d87b5fbbf3b228ec6384f1a69ee20d523ff59e5",
+      "freshness": "current",
+      "status": "passed"
+    },
+    {
+      "source_id": "attack-ics",
+      "document_id": "doc_82b0976456ea15f0a0d5ff8d302f04b5",
+      "revision": "c2494b29dd268c46a5d0ea0990553e4327cd2253",
+      "original_hash": "c9ca0ce523a1b5e512060a390415e8aefe8f6d32c5f82d7de81264960c1e1183",
+      "freshness": "current",
+      "status": "passed"
+    },
+    {
+      "source_id": "d3fend",
+      "document_id": "doc_d5ed22004ba949062cf1721bbeaf5cbf",
+      "revision": "f2fe51f4ce9724b9ec45d24d9a5eef9974952381c05ec047497db57adc59c50e",
+      "original_hash": "e1546d432c6aa64d45b62dd9e9484b0774ae84de7ff3605ff9dd4e20278957bf",
+      "freshness": "current",
+      "status": "passed"
+    },
+    {
+      "source_id": "atlas",
+      "document_id": "doc_7825a2a3a59998f600e84aaba9321aa4",
+      "revision": "3259f388d19cbcca11bacf12a0ef97f4198f711b",
+      "original_hash": "935efa93e28294432d3e2f537eb94991ef8d1f8c58341cd360ea3321ddb66688",
+      "freshness": "current",
+      "status": "passed"
+    },
+    {
+      "source_id": "capec",
+      "document_id": "doc_b4fb6d23d9ba63563c1b4c4e0b61bda0",
+      "revision": "50be388e93819a5d20e71cbaaeccfda157abc846",
+      "original_hash": "ee6244f48259c1963d0507535e1843d67ba08fe58b4dfe351c1b74f9e376fa69",
+      "freshness": "current",
+      "status": "passed"
+    },
+    {
+      "source_id": "hacktricks",
+      "document_id": "doc_3439a6c06b2fbd1c1acdb6f3ecd16245",
+      "revision": "598cd605f2b2bd9f387dbfe382127c800a91286f",
+      "original_hash": "516973947c943c3a87db2311f194b7ad7e756e189c1cc1b78b0a6fd30a6f7100",
+      "freshness": "current",
+      "status": "passed"
+    },
+    {
+      "source_id": "payloads",
+      "document_id": "doc_38d03e3acbabe1ecaaae701a12755bd6",
+      "revision": "3ac27901c711bdf3f5b65a7b1d1820a1f65bd09a",
+      "original_hash": "fc9cef25a620ae18f26192c9d8edf2701617b157d942a47bce1d1fdea1df328f",
+      "freshness": "current",
+      "status": "passed"
+    },
+    {
+      "source_id": "internal-all-the-things",
+      "document_id": "doc_bcc075c9e82f2caf8aa3f348c2b3f401",
+      "revision": "203bb0c0b290bf7c9158c32d43523b8d66f292c1",
+      "original_hash": "48ea401819468309397b6602aea6df863a94abad484746998c84b88c14ba4b25",
+      "freshness": "current",
+      "status": "passed"
+    },
+    {
+      "source_id": "gtfobins",
+      "document_id": "doc_2855e74c1ef697140eb0aa83b9ec62a9",
+      "revision": "acd524623f9c406acedd2754ebd9c2431f3675ad",
+      "original_hash": "05ca0fbad02068f852e26a7853eb4f6305b6ff6529eb95096f332f5698bd228a",
+      "freshness": "current",
+      "status": "passed"
+    },
+    {
+      "source_id": "lolbas",
+      "document_id": "doc_3fc663e3dae6674331b234bcbe88110f",
+      "revision": "2056cb7662509dc998fc6ce79636aec4e6c0397f",
+      "original_hash": "9e10c346f9f2669ac96f4b1effd6f1701bdd989fde73fcc7fef2f43e9e9de3c4",
+      "freshness": "current",
+      "status": "passed"
+    },
+    {
+      "source_id": "wadcoms",
+      "document_id": "doc_22e313e93245167c6aae66d35ad1dc37",
+      "revision": "d0aa094e0b795c6452e013245d9ed6782ea2d65e",
+      "original_hash": "47bb8c0cb3e973c7812b8f144e93c71afd3f9b74149e66c901894ce6a09f48c0",
+      "freshness": "current",
+      "status": "passed"
+    },
+    {
+      "source_id": "loobins",
+      "document_id": "doc_448bf02b29e25b323759418ecac29c6e",
+      "revision": "2103d44d207ba0425400693744eddf1b3ee97a25",
+      "original_hash": "59efd17a3c93277560e913408e1cd7d8a74c7d0cfc8b8f0498b779f184c105ab",
+      "freshness": "current",
+      "status": "passed"
+    },
+    {
+      "source_id": "owasp-top10",
+      "document_id": "doc_5c48a2a846dddd804f2560c25183c311",
+      "revision": "3a31f35346c3f4e90f350395124382fa53af2afe",
+      "original_hash": "d6ebc4e65422ff4fa32c310dec3c20ed6e804edfd2d06c7e5b8a802645f556ec",
+      "freshness": "current",
+      "status": "passed"
+    },
+    {
+      "source_id": "owasp-api",
+      "document_id": "doc_b35a6a6758c614b2990c93ed095aa418",
+      "revision": "33cea37b2ffde3e2e62f6b5d79a029a22a846633",
+      "original_hash": "f5a827897509a005095c306d05e56b8dc713717a78cb5360a2ba4b3c29bf4b2b",
+      "freshness": "current",
+      "status": "passed"
+    },
+    {
+      "source_id": "owasp-mobile",
+      "document_id": "doc_ff84089b3c718ddbe117fc44cb62a979",
+      "revision": "f2dc2d6607f3da069e8b91c7a44825fd85c74555",
+      "original_hash": "9efd5ab18e698447d08c365e2ccc2e8f21dbab244b1ff6f095af06411679b97e",
+      "freshness": "current",
+      "status": "passed"
+    },
+    {
+      "source_id": "owasp-llm",
+      "document_id": "doc_4f778c2a59d8c422d94e522e9249eafc",
+      "revision": "99f4395589bdbd120ae961f9cd179e79d7f9b27f",
+      "original_hash": "0b6c84e994ed7e2813ae4d758259adcd6344c20f48b14a65fb1c59e61871a1b9",
+      "freshness": "current",
+      "status": "passed"
+    },
+    {
+      "source_id": "owasp-wstg",
+      "document_id": "doc_20343b6f049104584daaf2fe91e32ae3",
+      "revision": "0dfbd5a585a503e27761b8f6c8bd8caf0903c8e8",
+      "original_hash": "4461f04936cd31cca6fd3653e865640eb2759a8f52ff067f17d180142fbb55be",
+      "freshness": "current",
+      "status": "passed"
+    },
+    {
+      "source_id": "yara",
+      "document_id": "doc_4d1da4986e209678b1666233827e0938",
+      "revision": "0f93570194a80d2f2032869055808b0ddcdfb360",
+      "original_hash": "af98f947ff400fe76f0d2f919749fba5f278d7a6d19c0f34de6eeddd44e52f91",
+      "freshness": "current",
+      "status": "passed"
+    },
+    {
+      "source_id": "atomic-red-team",
+      "document_id": "doc_c9538c72e733c575a059a4501bc4f05a",
+      "revision": "1edbe50b8f49560110e6cf85161c1ef75a5732b7",
+      "original_hash": "54ebdbccfd6d5435a52bb048b3e8b9de541d8f0bd6c86f97ff982a15f1a76945",
+      "freshness": "current",
+      "status": "passed"
+    },
+    {
+      "source_id": "windows-events",
+      "document_id": "doc_5641822cae05c0baac80243119dbaf02",
+      "revision": "ca6b89d501ce1ed3e5f270dadab212b7d07ac5aff2fda30f2c558ae5d82cdb44",
+      "original_hash": "75c186f880043637bc5d9538f990629602431a5069790f6aeca45231cfabb1b1",
+      "freshness": "current",
+      "status": "passed"
+    },
+    {
+      "source_id": "nvd",
+      "document_id": "doc_17f862060f1c685b927998272aa9952c",
+      "revision": "906849fe4fdc3fe9046e2a5773979dc2266945fb3516dd87cc6b5bf133132dd6",
+      "original_hash": "bfdf3083530c5ca18e3e09bc4470b4796e96117c4ae8f7599c67318a7bcd2c13",
+      "freshness": "current",
+      "status": "passed"
+    },
+    {
+      "source_id": "cwe",
+      "document_id": "doc_85e011f6bcfa2fcb0c83c00ea625734c",
+      "revision": "5a7217eb968ff858156ff2b7cfbf6fb41d795bfd8944f1fb7b3916fdbb3892dd",
+      "original_hash": "c07db07db5f79a9c47a7e600220a46c4a9e999086d0505da2c592c3fdc7d1839",
+      "freshness": "current",
+      "status": "passed"
+    },
+    {
+      "source_id": "exploit-db",
+      "document_id": "doc_3e291e732eecd475cb79e174ec4421e3",
+      "revision": "12879ca774a9d7543907d24a7bc1cebb47959afe",
+      "original_hash": "fd787e02090296c56f3081b247283b21915075fa5d0c46d89b6f6baa97f19299",
+      "freshness": "current",
+      "status": "passed"
+    },
+    {
+      "source_id": "unprotect",
+      "document_id": "doc_25daf9b22a58fb7623a5720668762880",
+      "revision": "8b5aba243a034c3bedeb1dfddab4b11ef54eb7eb",
+      "original_hash": "aaf21b753fef9b3ad8007b84c469f5ceeb1ad82404410ddd9675a983f17db0ef",
+      "freshness": "current",
+      "status": "passed"
+    },
+    {
+      "source_id": "capa",
+      "document_id": "doc_e1478daa9348b146f3607678e0c322de",
+      "revision": "21332a057f5be39fa145bc4aea7ae2431ff05fc3",
+      "original_hash": "8f95adeb8b11acccffb64c39a3b78c477ceee806be9537c74ef91be9a5db188a",
+      "freshness": "current",
+      "status": "passed"
+    },
+    {
+      "source_id": "vx-papers",
+      "document_id": "doc_6eb8e5d9b33d05b42339fedf01962420",
+      "revision": "751edb8d50f95bd7baa730adf2c6c3bb1b034276",
+      "original_hash": "4c2ad3b7d216f4e61354100f764718816df5a8953ed29520e730148c7c0785b3",
+      "freshness": "current",
+      "status": "passed"
+    },
+    {
+      "source_id": "nist-csf",
+      "document_id": "doc_e4d79eb6f01715684b0c2e6f53bf81cd",
+      "revision": "78650f02ad9321bb7b817846f8fbd4f2bcd620de",
+      "original_hash": "4836943f21d393f2821df85ada4e6f3c0617243b4ddf44263fe68205400210b4",
+      "freshness": "current",
+      "status": "passed"
+    },
+    {
+      "source_id": "nist-800-53",
+      "document_id": "doc_a6968c74e6d1b20b055c501b76e7994f",
+      "revision": "78650f02ad9321bb7b817846f8fbd4f2bcd620de",
+      "original_hash": "01f37cf90ea99d92242c936cbfbdebcc338eef1f71454e2acac36cc56e9bc062",
+      "freshness": "current",
+      "status": "passed"
+    },
+    {
+      "source_id": "cis-controls",
+      "document_id": "doc_cba1e5f7738bf0d8cd30ac92e49f84d8",
+      "revision": "d7ac8ad501838a90e4814bdc2f309fc87af9f37fb73f6c49087afea05cf7d378",
+      "original_hash": "ad366711310451131e32b0c9f9b8a9f1f9f15ff7114db326e611eb25356769ef",
+      "freshness": "current",
+      "status": "passed"
+    },
+    {
+      "source_id": "lgpd",
+      "document_id": "doc_79b19f10947a1972b20a07b40f2c8af6",
+      "revision": "7eaa72742a3fb3648ac0a4f3387cfeaf72477b9eeb062407319946181fa468f1",
+      "original_hash": "5ade20f12d206504f3beb13a0595d144efc891229ad0e6badcebfa97a8a83596",
+      "freshness": "current",
+      "status": "passed"
+    },
+    {
+      "source_id": "gdpr",
+      "document_id": "doc_919ffce38d9cd2ecf4becb866bd9b276",
+      "revision": "ec93a4a44db7e336268a3f15ce2c7720a6899210286fae0f72297e4c800e452f",
+      "original_hash": "a681ff22f32f125749af6e96947224369efc132edb8a95b12637e357df1056de",
+      "freshness": "current",
+      "status": "passed"
+    },
+    {
+      "source_id": "iso27001",
+      "document_id": "doc_9deef7d6533f96beb0ba3586a86b564b",
+      "revision": "5783dca0615f53c0f822bd31bde7851c7855ffb834ab0b630d0994a438bb7251",
+      "original_hash": "4c678e9da56c3fc86fb4b6503a98f508865825e5482429166ba3065c73e2884f",
+      "freshness": "current",
+      "status": "passed"
+    }
+  ],
+  "skipped_sources": [
+    "malapi"
+  ],
+  "tool_count": 10,
+  "snapshot_id": "8c3f327f9674490ba2ac1a9e521071cf",
+  "snapshot_documents": 1774,
+  "configured_sources": 38,
+  "catalog_response_bytes": 57679,
+  "online_queries": [
+    {
+      "sources": [
+        "owasp"
+      ],
+      "status": "passed"
+    },
+    {
+      "sources": [
+        "cve",
+        "kev",
+        "nvd"
+      ],
+      "status": "passed"
+    }
+  ],
+  "combined_queries": [
+    {
+      "sources": [
+        "attack",
+        "sigma",
+        "atomic-red-team"
+      ],
+      "returned": 2,
+      "status": "passed"
+    },
+    {
+      "sources": [
+        "cve",
+        "kev",
+        "nvd"
+      ],
+      "returned": 3,
+      "status": "passed"
+    },
+    {
+      "sources": [
+        "owasp",
+        "attack",
+        "sigma",
+        "cve",
+        "kev",
+        "attack-mobile",
+        "attack-ics",
+        "d3fend",
+        "atlas",
+        "capec",
+        "hacktricks",
+        "payloads",
+        "internal-all-the-things",
+        "gtfobins",
+        "lolbas",
+        "wadcoms",
+        "loobins",
+        "owasp-top10",
+        "owasp-api",
+        "owasp-mobile",
+        "owasp-llm",
+        "owasp-wstg",
+        "yara",
+        "atomic-red-team",
+        "windows-events",
+        "nvd",
+        "cwe",
+        "exploit-db",
+        "unprotect",
+        "capa",
+        "vx-papers",
+        "nist-csf",
+        "nist-800-53",
+        "cis-controls",
+        "lgpd",
+        "gdpr",
+        "iso27001"
+      ],
+      "returned": 3,
+      "status": "passed"
+    }
+  ],
+  "original_roundtrips": [
+    {
+      "source_id": "owasp",
+      "bytes": 20550,
+      "pages": 3,
+      "status": "passed"
+    },
+    {
+      "source_id": "nvd",
+      "bytes": 87139,
+      "pages": 10,
+      "status": "passed"
+    },
+    {
+      "source_id": "exploit-db",
+      "bytes": 6245,
+      "pages": 1,
+      "status": "passed"
+    },
+    {
+      "source_id": "vx-papers",
+      "bytes": 182530,
+      "pages": 21,
+      "status": "passed"
+    }
+  ],
+  "memory_roundtrip": "passed_and_test_note_deleted",
+  "status": "passed",
+  "limitations": [
+    "Offline cache and MCP transport regression; upstream online gates are reported separately.",
+    "Selection smoke tests do not measure full corpus coverage or client answer quality.",
+    "Claude application was not exercised by this script."
+  ]
+}

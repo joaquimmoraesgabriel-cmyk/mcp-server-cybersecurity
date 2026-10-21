@@ -149,5 +149,17 @@ def fetch_pilot(destination: Path) -> Path:
     manifest = {"manifest_version": 1, "profile": "pilot-real-sources", "created_at": datetime.now(UTC).isoformat(), "sources": entries}
     (staging / "manifest.json").write_text(json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8")
     final = destination / f"pilot-{stamp}-{suffix}"
-    staging.rename(final)
+    _publish_directory(staging, final)
     return final / "manifest.json"
+
+
+def _publish_directory(staging: Path, final: Path) -> None:
+    """Keep atomic publication while tolerating brief Windows file-handle locks."""
+    for attempt in range(6):
+        try:
+            staging.rename(final)
+            return
+        except PermissionError as exc:
+            if getattr(exc, "winerror", None) not in {5, 32, 33} or attempt == 5:
+                raise
+            time.sleep(0.05 * 2 ** attempt)

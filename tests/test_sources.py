@@ -1,5 +1,6 @@
 import io
 import json
+from pathlib import Path
 
 import pytest
 
@@ -75,3 +76,43 @@ def test_failed_fetch_never_publishes_manifest(tmp_path, monkeypatch):
     with pytest.raises(sources.SourceFetchError):
         sources.fetch_pilot(tmp_path)
     assert not list(tmp_path.rglob("manifest.json"))
+
+
+def test_windows_temporary_directory_lock_preserves_atomic_publish(tmp_path, monkeypatch):
+    staging, final = tmp_path / ".partial-test", tmp_path / "pilot-test"
+    staging.mkdir()
+    (staging / "manifest.json").write_text("{}")
+    rename, calls = Path.rename, []
+
+    def transient(path, target):
+        calls.append(path)
+        if len(calls) == 1:
+            error = PermissionError("Temporarily locked directory")
+            error.winerror = 32
+            raise error
+        return rename(path, target)
+
+    monkeypatch.setattr(Path, "rename", transient)
+    monkeypatch.setattr(sources.time, "sleep", lambda _: None)
+    sources._publish_directory(staging, final)
+    assert len(calls) == 2 and (final / "manifest.json").is_file()
+    assert not staging.exists()
+
+
+@pytest.mark.parametrize("winerror,attempts", [(5, 6), (32, 6), (33, 6), (None, 1)])
+def test_persistent_publish_denial_stays_unpublished(tmp_path, monkeypatch, winerror, attempts):
+    staging, final = tmp_path / ".partial-test", tmp_path / "pilot-test"
+    staging.mkdir()
+    calls = []
+
+    def denied(path, target):
+        calls.append(path)
+        error = PermissionError("Denied")
+        error.winerror = winerror
+        raise error
+
+    monkeypatch.setattr(Path, "rename", denied)
+    monkeypatch.setattr(sources.time, "sleep", lambda _: None)
+    with pytest.raises(PermissionError):
+        sources._publish_directory(staging, final)
+    assert len(calls) == attempts and staging.is_dir() and not final.exists()

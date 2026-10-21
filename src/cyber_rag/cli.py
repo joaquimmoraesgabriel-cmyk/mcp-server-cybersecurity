@@ -18,7 +18,7 @@ def _emit(value):
 
 
 def main(argv=None) -> int:
-    parser = argparse.ArgumentParser(prog="cyber-rag", description="RAG local de cibersegurança via MCP")
+    parser = argparse.ArgumentParser(prog="cyber-rag", description="RAG local de cibersegurança via MCP: snapshot, cache de fontes e memória derivada")
     parser.add_argument("--version", action="version", version=__version__)
     commands = parser.add_subparsers(dest="command", required=True)
     for name in (
@@ -35,7 +35,15 @@ def main(argv=None) -> int:
         "models",
         "evaluate",
     ):
-        command = commands.add_parser(name)
+        descriptions = {
+            "search": "Pesquisar apenas o snapshot local, sem rede, cache de fontes ou memória",
+            "research": "Pesquisar snapshot, cache de fontes registradas e memória derivada; consulte catalog para fontes e cobertura",
+            "catalog": "Listar fontes registradas, modos de consulta, cobertura do cache e memória, sem acesso à rede",
+            "status": "Consultar cobertura e perfil do snapshot local e fontes sob demanda disponíveis",
+            "serve": "Expor as ferramentas MCP por stdio usando o núcleo local",
+            "core": "Iniciar o núcleo local que atende às consultas MCP e da CLI",
+        }
+        command = commands.add_parser(name, help=descriptions.get(name), description=descriptions.get(name))
         command.add_argument("--data-dir", type=Path, help="Diretório local da base (ou CYBER_RAG_DATA_DIR)")
         if name == "core":
             command.add_argument("--keep-alive", action="store_true", help="Manter núcleo em primeiro plano até Ctrl+C, sem saída por inatividade")
@@ -47,12 +55,15 @@ def main(argv=None) -> int:
         if name == "sync-pilot":
             command.add_argument("--destination", type=Path, help="Pasta local para snapshots das fontes")
         if name in {"search", "research"}:
-            command.add_argument("query")
-            command.add_argument("--limit", type=int, default=3 if name == "research" else 5)
-            command.add_argument("--source", action="append")
+            command.add_argument("query", help="Pergunta ou identificador a pesquisar")
+            command.add_argument("--limit", type=int, default=3 if name == "research" else 5,
+                                 help="Resultados por camada, de 1 a 3" if name == "research" else "Resultados do snapshot, de 1 a 20")
+            command.add_argument("--source", action="append",
+                                 help="ID de catalog; repita até 3 fontes online ou 64 offline" if name == "research" else "ID da fonte no snapshot; repita para filtrar até 64 fontes")
         if name == "research":
-            command.add_argument("--freshness", choices=("auto", "refresh", "offline"), default="auto")
-            command.add_argument("--path", help="Caminho exato cheatsheets/*.md cadastrado na OWASP")
+            command.add_argument("--freshness", choices=("auto", "refresh", "offline"), default="auto",
+                                 help="auto segue o prazo de cada fonte; refresh solicita verificação respeitando limites de repetição; offline consulta somente dados locais")
+            command.add_argument("--path", help="Caminho relativo aprovado no catálogo; exige exatamente um --source e não aceita URL")
         if name == "config":
             command.add_argument("--client", choices=("codex", "claude"), required=True)
         if name == "models":
@@ -101,7 +112,7 @@ def main(argv=None) -> int:
             finally:
                 db.close()
             packages = {}
-            for name in ("mcp", "PyYAML", "filelock", "qdrant-client", "sentence-transformers"):
+            for name in ("mcp", "PyYAML", "filelock", "qdrant-client", "pypdf", "sentence-transformers"):
                 try:
                     packages[name] = importlib.metadata.version(name)
                 except importlib.metadata.PackageNotFoundError:

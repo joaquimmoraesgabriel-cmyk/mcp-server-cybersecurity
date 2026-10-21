@@ -1,0 +1,83 @@
+{
+  "generated_at": "2026-10-21T18:28:00.381324+00:00",
+  "status": "passed_with_explicit_unavailable_source",
+  "configured_sources": 38,
+  "sources_with_live_and_local_evidence": 37,
+  "unavailable": [
+    {
+      "source_id": "malapi",
+      "status": "unavailable",
+      "checked_at": "2026-10-21T18:27:34.210923+00:00",
+      "query": "VirtualAlloc",
+      "url": "https://malapi.io/winapi/VirtualAlloc",
+      "remote_status": "failed",
+      "cached_versions": 0,
+      "warnings": [
+        "malapi: Verificação remota falhou: network_unavailable; versões anteriores preservadas."
+      ],
+      "no_substitute_attributed": true,
+      "owasp_after_failure": "passed",
+      "transport": "authenticated shared core"
+    }
+  ],
+  "tests": {
+    "passed": 681,
+    "failed": 0,
+    "skipped": 0,
+    "seconds": 107.223,
+    "real_semantic_model_exercised": true
+  },
+  "url_gates_report": "2026-10-21-source-urls.json",
+  "mcp_report": "2026-10-21-mcp-multisource.json",
+  "retrieval_report": "2026-10-21-retrieval-multisource.json",
+  "retrieval_summary": {
+    "total": 30,
+    "eligible": 24,
+    "executed": 24,
+    "passed": 24,
+    "failed": 0,
+    "skipped": 6
+  },
+  "snapshot_id": "8c3f327f9674490ba2ac1a9e521071cf",
+  "snapshot_documents": 1774,
+  "dependency_audit": {
+    "service": "OSV via pip-audit",
+    "applicable_dependencies": 100,
+    "known_vulnerabilities": 0,
+    "skipped": 0,
+    "uv_lock_offline_check": "passed",
+    "locked_packages_all_platforms": 124
+  },
+  "iso_initial_download": {
+    "bytes": 60058790,
+    "elapsed_seconds": 54.89,
+    "requests": "1 HEAD + 8 conditional ranges",
+    "scanned_records": 81670,
+    "selected_records": 7,
+    "sha256": "4c678e9da56c3fc86fb4b6503a98f508865825e5482429166ba3065c73e2884f"
+  },
+  "lirio": {
+    "project_id": "6fc7a6d2-3bd3-468f-9b25-4c90cd759d38",
+    "graphify_context_and_results": "used",
+    "external_review": "not_completed: OPENROUTER_RESPONSE",
+    "failed_run_ids": [
+      "4f3e4f6f-2d0f-4880-8b6a-bdf70d1ef639",
+      "232901ec-34ee-40e2-8c15-d0250b9ed5ea"
+    ]
+  },
+  "source_registry_sha256": "0c5abdc1a706bb9cbdbb840812be2290f1f4ef6b7fb2d005aa8518937ca779e7",
+  "limitations": [
+    "Smoke tests validate selected documents, not ingestion or relevance across entire repositories.",
+    "knowledge_search uses the existing semantic snapshot; knowledge_research federates snapshot, lexical caches and derived memory.",
+    "MalAPI's official host was unreachable; no alternate content is attributed to MalAPI.",
+    "EventKB was not verified; windows-events is explicitly Microsoft Learn documentation for the listed Windows version.",
+    "ISO connector provides only open metadata, not normative standard text. VX is a restricted paper selection.",
+    "GDPR URLs are fixed official publications and do not discover subsequent amendments.",
+    "Source licensing remains applicable. Corpus files are cached locally and excluded from Git.",
+    "Official Python MCP SDK/Windows was exercised. GPT/Claude answer fidelity and the Claude application were not evaluated.",
+    "PDF Windows process limits were exercised; POSIX limits were not tested on this Windows host."
+  ],
+  "resolved_validation_incident": "Full-suite runs exposed a Windows access failure during atomic pilot-directory publication. Added bounded retries for Windows access/sharing locks; persistent denial still leaves the staging directory unpublished. Isolated regression22tests and the final full suite passed. The process responsible for the transient lock was not identified.",
+  "source_registry_hash_normalization": "UTF-8 text with LF line endings",
+  "initial_individual_gates_report": "2026-10-21-initial-source-gates.json"
+}

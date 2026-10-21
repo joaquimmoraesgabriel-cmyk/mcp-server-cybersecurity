@@ -1,0 +1,321 @@
+{
+  "schema_version": "1.0",
+  "generated_at": "2026-10-21T18:27:34.596903Z",
+  "status": "passed",
+  "snapshot_id": "8c3f327f9674490ba2ac1a9e521071cf",
+  "benchmark_version": "retrieval-pilot-2026-10-21-v1",
+  "dataset_kind": "real-source-pilot",
+  "transport": "shared_core",
+  "split_filter": null,
+  "client_answer_status": "not_evaluated",
+  "summary": {
+    "total": 30,
+    "eligible": 24,
+    "executed": 24,
+    "passed": 24,
+    "failed": 0,
+    "skipped": 6
+  },
+  "source_revision_check": {
+    "status": "passed",
+    "expected": {
+      "attack": "c2494b29dd268c46a5d0ea0990553e4327cd2253",
+      "owasp": "c366393214da5ae186a7a06a27dade7617987304",
+      "sigma": "773f8d1bd92f575002aabe62c64e0932bb7fac94",
+      "cve": "565af88a49a2d7eabfa12905caa1b05171fc603e",
+      "kev": "3de597fd70382f1f09acb09bf5e15dca4fa22678"
+    },
+    "actual": {
+      "attack": "c2494b29dd268c46a5d0ea0990553e4327cd2253",
+      "owasp": "c366393214da5ae186a7a06a27dade7617987304",
+      "sigma": "773f8d1bd92f575002aabe62c64e0932bb7fac94",
+      "cve": "565af88a49a2d7eabfa12905caa1b05171fc603e",
+      "kev": "3de597fd70382f1f09acb09bf5e15dca4fa22678"
+    }
+  },
+  "cases": [
+    {
+      "id": "Q01",
+      "split": "development",
+      "critical": false,
+      "status": "passed",
+      "checks_completed": 2,
+      "client_answer_status": "not_evaluated",
+      "elapsed_seconds": 0.3456
+    },
+    {
+      "id": "Q02",
+      "split": "acceptance",
+      "critical": false,
+      "status": "passed",
+      "checks_completed": 2,
+      "client_answer_status": "not_evaluated",
+      "elapsed_seconds": 0.2853
+    },
+    {
+      "id": "Q03",
+      "split": "development",
+      "critical": false,
+      "status": "passed",
+      "checks_completed": 3,
+      "client_answer_status": "not_evaluated",
+      "elapsed_seconds": 0.0486
+    },
+    {
+      "id": "Q04",
+      "split": "acceptance",
+      "critical": false,
+      "status": "passed",
+      "checks_completed": 2,
+      "client_answer_status": "not_evaluated",
+      "elapsed_seconds": 0.0343
+    },
+    {
+      "id": "Q05",
+      "split": "development",
+      "critical": false,
+      "status": "passed",
+      "checks_completed": 3,
+      "client_answer_status": "not_evaluated",
+      "elapsed_seconds": 0.0472
+    },
+    {
+      "id": "Q06",
+      "split": "acceptance",
+      "critical": true,
+      "status": "passed",
+      "checks_completed": 1,
+      "client_answer_status": "not_evaluated",
+      "elapsed_seconds": 0.029
+    },
+    {
+      "id": "Q07",
+      "split": "development",
+      "critical": false,
+      "status": "passed",
+      "checks_completed": 2,
+      "client_answer_status": "not_evaluated",
+      "elapsed_seconds": 0.2515
+    },
+    {
+      "id": "Q08",
+      "split": "acceptance",
+      "critical": true,
+      "status": "passed",
+      "checks_completed": 2,
+      "client_answer_status": "not_evaluated",
+      "elapsed_seconds": 0.0338
+    },
+    {
+      "id": "Q09",
+      "split": "development",
+      "critical": false,
+      "status": "passed",
+      "checks_completed": 2,
+      "client_answer_status": "not_evaluated",
+      "elapsed_seconds": 0.0333
+    },
+    {
+      "id": "Q10",
+      "split": "development",
+      "critical": false,
+      "status": "passed",
+      "checks_completed": 1,
+      "client_answer_status": "not_evaluated",
+      "elapsed_seconds": 0.0046
+    },
+    {
+      "id": "Q11",
+      "split": "acceptance",
+      "critical": true,
+      "status": "passed",
+      "checks_completed": 2,
+      "client_answer_status": "not_evaluated",
+      "elapsed_seconds": 0.0388
+    },
+    {
+      "id": "Q12",
+      "split": "development",
+      "critical": false,
+      "status": "passed",
+      "checks_completed": 2,
+      "client_answer_status": "not_evaluated",
+      "elapsed_seconds": 0.2296
+    },
+    {
+      "id": "Q13",
+      "split": "development",
+      "critical": false,
+      "status": "passed",
+      "checks_completed": 2,
+      "client_answer_status": "not_evaluated",
+      "elapsed_seconds": 0.3333
+    },
+    {
+      "id": "Q14",
+      "split": "development",
+      "critical": false,
+      "status": "passed",
+      "checks_completed": 2,
+      "client_answer_status": "not_evaluated",
+      "elapsed_seconds": 0.2825
+    },
+    {
+      "id": "Q15",
+      "split": "development",
+      "critical": false,
+      "status": "passed",
+      "checks_completed": 2,
+      "client_answer_status": "not_evaluated",
+      "elapsed_seconds": 0.3122
+    },
+    {
+      "id": "Q16",
+      "split": "development",
+      "critical": false,
+      "status": "passed",
+      "checks_completed": 2,
+      "client_answer_status": "not_evaluated",
+      "elapsed_seconds": 0.4341
+    },
+    {
+      "id": "Q17",
+      "split": "development",
+      "critical": false,
+      "status": "passed",
+      "checks_completed": 2,
+      "client_answer_status": "not_evaluated",
+      "elapsed_seconds": 0.0588
+    },
+    {
+      "id": "Q18",
+      "split": "development",
+      "critical": false,
+      "status": "passed",
+      "checks_completed": 1,
+      "client_answer_status": "not_evaluated",
+      "elapsed_seconds": 0.0815
+    },
+    {
+      "id": "Q19",
+      "split": "development",
+      "critical": false,
+      "status": "passed",
+      "checks_completed": 1,
+      "client_answer_status": "not_evaluated",
+      "elapsed_seconds": 0.0926
+    },
+    {
+      "id": "Q20",
+      "split": "development",
+      "critical": false,
+      "status": "passed",
+      "checks_completed": 1,
+      "client_answer_status": "not_evaluated",
+      "elapsed_seconds": 0.0101
+    },
+    {
+      "id": "Q21",
+      "split": "acceptance",
+      "critical": true,
+      "status": "skipped",
+      "reason": "Requires two controlled clock variants and evaluation of the client answer about today."
+    },
+    {
+      "id": "Q22",
+      "split": "acceptance",
+      "critical": true,
+      "status": "skipped",
+      "reason": "The claim about absence of exploitation is a client reasoning test, not a retrieval metric."
+    },
+    {
+      "id": "Q23",
+      "split": "acceptance",
+      "critical": true,
+      "status": "passed",
+      "checks_completed": 1,
+      "client_answer_status": "not_evaluated",
+      "elapsed_seconds": 0.0203
+    },
+    {
+      "id": "Q24",
+      "split": "acceptance",
+      "critical": false,
+      "status": "passed",
+      "checks_completed": 2,
+      "client_answer_status": "not_evaluated",
+      "elapsed_seconds": 0.081
+    },
+    {
+      "id": "Q25",
+      "split": "acceptance",
+      "critical": false,
+      "status": "passed",
+      "checks_completed": 2,
+      "client_answer_status": "not_evaluated",
+      "elapsed_seconds": 0.036
+    },
+    {
+      "id": "Q26",
+      "split": "acceptance",
+      "critical": true,
+      "status": "passed",
+      "checks_completed": 2,
+      "client_answer_status": "not_evaluated",
+      "elapsed_seconds": 0.0599
+    },
+    {
+      "id": "Q27",
+      "split": "acceptance",
+      "critical": false,
+      "status": "skipped",
+      "reason": "Requires the isolated CVE/NVD conflict fixture and client evaluation; NVD is absent from this pilot."
+    },
+    {
+      "id": "Q28",
+      "split": "acceptance",
+      "critical": true,
+      "status": "skipped",
+      "reason": "Requires evaluating a client answer without telemetry; retrieval cannot diagnose the machine."
+    },
+    {
+      "id": "Q29",
+      "split": "acceptance",
+      "critical": true,
+      "status": "skipped",
+      "reason": "Requires an isolated adversarial fixture and client trace; retrieval checks do not prove resistance."
+    },
+    {
+      "id": "Q30",
+      "split": "acceptance",
+      "critical": true,
+      "status": "skipped",
+      "reason": "Requires an isolated client exposing only the five knowledge tools and an action trace."
+    }
+  ],
+  "by_split": {
+    "development": {
+      "passed": 15,
+      "failed": 0,
+      "skipped": 0
+    },
+    "acceptance": {
+      "passed": 9,
+      "failed": 0,
+      "skipped": 6
+    }
+  },
+  "not_evaluated": [
+    "GPT/Claude answer fidelity",
+    "client compatibility",
+    "semantic recall",
+    "real corpus coverage",
+    "adversarial instruction resistance"
+  ],
+  "warnings": [
+    "Passing deterministic retrieval checks does not approve the 30-question client benchmark."
+  ],
+  "benchmark_sha256": "728a6a06b082e836592608c85ba16a749b6516d61cbec27a51ea3ef9c450c87b",
+  "benchmark_content_sha256": "6b5c40b39758a95a3a884a50299bfcfacf7379eef379d4be2a2fbe6153567103",
+  "runner_sha256": "81148c047bb29f603615f327ca27fb957fdd858040067e481ac1303481edbefc"
+}

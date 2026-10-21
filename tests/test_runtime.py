@@ -63,26 +63,37 @@ def test_queries_and_health_require_authentication(core):
 def test_extended_operation_does_not_wait_in_snapshot_queue(core):
     server, service = core
     with server.dispatch_lock:
-        status, _, result = request(core, body={"tool": "knowledge_research", "arguments": {"query": "password", "freshness": "offline"}})
+        status, _, result = request(
+            core,
+            body={"tool": "knowledge_research", "arguments": {"query": "password", "freshness": "offline"}},
+        )
     assert status == 200
     assert result["status"] == "ok"
     assert service.calls[0][0] == "knowledge_research"
 
 
-def test_extended_client_detects_old_core_before_sending_write(core, monkeypatch):
+@pytest.mark.parametrize("contract", [1, 2])
+def test_extended_client_detects_old_core_before_sending_write(core, monkeypatch, contract):
     server, service = core
-    client = runtime.CoreClient(server.server_port, server.query_token, server.instance_id, server.data_dir_id)
-    monkeypatch.setattr(client, "health", lambda: {"tool_contract": 1})
+    client = runtime.CoreClient(
+        server.server_port, server.query_token, server.instance_id, server.data_dir_id
+    )
+    monkeypatch.setattr(client, "health", lambda: {"tool_contract": contract})
     result = client.call("knowledge_remember", {"text": "a note", "references": []})
     assert result["error"]["code"] == "CORE_UPGRADE_REQUIRED"
     assert not service.calls
 
 
-@pytest.mark.parametrize("headers", [
-    {"Host": "evil.example"}, {"Host": "localhost"},
-    {"Origin": "https://evil.example"}, {"Origin": "null"},
-    {"Origin": "http://127.0.0.1"},
-])
+@pytest.mark.parametrize(
+    "headers",
+    [
+        {"Host": "evil.example"},
+        {"Host": "localhost"},
+        {"Origin": "https://evil.example"},
+        {"Origin": "null"},
+        {"Origin": "http://127.0.0.1"},
+    ],
+)
 def test_rejects_host_and_any_browser_origin(core, headers):
     status, response_headers, _ = request(core, headers=headers)
     assert status == 403
@@ -99,11 +110,16 @@ def test_disallows_admin_and_unknown_endpoints(core):
     assert core[1].calls == []
 
 
-@pytest.mark.parametrize("body", [
-    [], 42, {"tool": 42, "arguments": {}},
-    {"tool": "knowledge_status", "arguments": []},
-    {"tool": "knowledge_status", "arguments": {}, "admin": True},
-])
+@pytest.mark.parametrize(
+    "body",
+    [
+        [],
+        42,
+        {"tool": 42, "arguments": {}},
+        {"tool": "knowledge_status", "arguments": []},
+        {"tool": "knowledge_status", "arguments": {}, "admin": True},
+    ],
+)
 def test_rejects_malformed_operation_envelopes(core, body):
     status, _, result = request(core, body=body)
     assert status == 400
@@ -126,7 +142,9 @@ def test_rejects_duplicate_content_length(core):
     connection = http.client.HTTPConnection("127.0.0.1", server.server_port, timeout=2)
     try:
         connection.putrequest("POST", "/call")
-        for name, value in runtime._request_headers("POST", "/call", b"{}", server.server_port, "test-query-token").items():
+        for name, value in runtime._request_headers(
+            "POST", "/call", b"{}", server.server_port, "test-query-token"
+        ).items():
             connection.putheader(name, value)
         connection.putheader("Content-Length", "2")
         connection.putheader("Content-Length", "2")
@@ -180,7 +198,9 @@ def test_authentication_does_not_send_token_and_rejects_replay(core):
 
 def test_request_signature_binds_body(core):
     server, service = core
-    headers = runtime._request_headers("POST", "/call", b"different body", server.server_port, "test-query-token")
+    headers = runtime._request_headers(
+        "POST", "/call", b"different body", server.server_port, "test-query-token"
+    )
     assert request(core, headers=headers)[0] == 401
     assert service.calls == []
 
@@ -215,7 +235,9 @@ def test_queue_is_bounded(core):
     for _ in range(runtime.MAX_CONNECTIONS):
         assert server.slots.acquire(blocking=False)
     try:
-        client = runtime.CoreClient(server.server_port, "test-query-token", server.instance_id, "test-data-dir")
+        client = runtime.CoreClient(
+            server.server_port, "test-query-token", server.instance_id, "test-data-dir"
+        )
         result = client.call("knowledge_status", {})
         # Rejection precedes HTTP parsing; Windows can reset the socket while
         # the peer is still sending its body, before it receives the 503.
@@ -263,17 +285,26 @@ def test_launcher_reuses_authenticated_core(core, tmp_path, monkeypatch):
     directory = runtime._prepare_runtime(tmp_path)
     monkeypatch.setattr(runtime, "_token", lambda _: "test-query-token")
     server.data_dir_id = runtime._data_id(tmp_path)
-    (directory / "core.json").write_text(json.dumps({
-        "port": server.server_port, "protocol_version": 1,
-        "instance_id": server.instance_id, "data_dir_id": server.data_dir_id,
-    }), encoding="utf-8")
+    (directory / "core.json").write_text(
+        json.dumps(
+            {
+                "port": server.server_port,
+                "protocol_version": 1,
+                "instance_id": server.instance_id,
+                "data_dir_id": server.data_dir_id,
+            }
+        ),
+        encoding="utf-8",
+    )
 
     def no_spawn(*args, **kwargs):
         raise AssertionError("Existing healthy core must be reused")
 
     monkeypatch.setattr(runtime.subprocess, "Popen", no_spawn)
     clients = []
-    threads = [threading.Thread(target=lambda: clients.append(runtime.ensure_core(tmp_path))) for _ in range(2)]
+    threads = [
+        threading.Thread(target=lambda: clients.append(runtime.ensure_core(tmp_path))) for _ in range(2)
+    ]
     for thread in threads:
         thread.start()
     for thread in threads:
@@ -351,7 +382,12 @@ def test_foreground_lifecycle_respects_keep_alive(tmp_path, monkeypatch, keep_al
         return server
 
     monkeypatch.setattr(runtime, "_CoreHTTPServer", capture_server)
-    thread = threading.Thread(target=runtime.serve_core, args=(tmp_path,), kwargs={"keep_alive": keep_alive, "warmup": warmup}, daemon=True)
+    thread = threading.Thread(
+        target=runtime.serve_core,
+        args=(tmp_path,),
+        kwargs={"keep_alive": keep_alive, "warmup": warmup},
+        daemon=True,
+    )
     thread.start()
     try:
         assert started.wait(5)
@@ -359,7 +395,9 @@ def test_foreground_lifecycle_respects_keep_alive(tmp_path, monkeypatch, keep_al
         if keep_alive:
             assert thread.is_alive(), "Manual core must outlive the idle timeout"
             server = servers[0]
-            client = runtime.CoreClient(server.server_port, server.query_token, server.instance_id, server.data_dir_id)
+            client = runtime.CoreClient(
+                server.server_port, server.query_token, server.instance_id, server.data_dir_id
+            )
             assert client.call("knowledge_status", {})["status"] == "ok"
             server.shutdown()
             thread.join(timeout=3)

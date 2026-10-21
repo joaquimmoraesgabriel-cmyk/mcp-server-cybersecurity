@@ -216,9 +216,9 @@ class MemoryStore:
         if type(limit) is not int or not 1 <= limit <= 10:
             raise KnowledgeError("INVALID_ARGUMENT", "limit deve estar entre 1 e 10.")
         if source_ids is not None:
-            if not isinstance(source_ids, list) or not 1 <= len(source_ids) <= 20:
+            if not isinstance(source_ids, list) or not 1 <= len(source_ids) <= 64:
                 raise KnowledgeError(
-                    "INVALID_ARGUMENT", "source_ids exige uma lista não vazia de até 20 fontes."
+                    "INVALID_ARGUMENT", "source_ids exige uma lista não vazia de até 64 fontes."
                 )
             source_ids = {_text(value, "source_id", 64) for value in source_ids}
         tokens = list(dict.fromkeys(re.findall(r"[^\W_]+", query, re.UNICODE)))[:32]

@@ -93,8 +93,9 @@ def _filters(value) -> dict:
         raise KnowledgeError("UNSUPPORTED_FILTER", "Filtro desconhecido; consulte knowledge_search.")
     for key, item in value.items():
         if key in LIST_FILTERS:
-            if not isinstance(item, list) or not 1 <= len(item) <= 50:
-                raise KnowledgeError("INVALID_ARGUMENT", f"{key} exige uma lista de 1 a 50 valores.")
+            maximum = 64 if key == "source_ids" else 50
+            if not isinstance(item, list) or not 1 <= len(item) <= maximum:
+                raise KnowledgeError("INVALID_ARGUMENT", f"{key} exige uma lista de 1 a {maximum} valores.")
             for element in item:
                 _text(element, key, 256)
         elif key == "kev_presence":
@@ -395,15 +396,33 @@ class KnowledgeService:
         return {"source_checked_at": dates, "freshness": states}
 
     def _status(self, envelope, args):
+        from .research import TOOL_CONTRACT
+        from .source_registry import SOURCES
+
         source_id = args.get("source_id")
         if source_id is not None:
             _text(source_id, "source_id", 64)
         if not (self.data_dir / "active.json").exists():
-            envelope.update(status="ok", snapshot_id=None, results=[{
-                "snapshot_id": None, "profile": None, "document_count": 0, "sources": {},
-                "snapshot_read_only": True, "read_only": False, "tool_contract": 2,
-                "on_demand_source_ids": ["owasp"], "memory": "explicit_derived_notes",
-            }], warnings=["Snapshot ainda não importado; knowledge_research pode consultar OWASP sob demanda."])
+            envelope.update(
+                status="ok",
+                snapshot_id=None,
+                results=[
+                    {
+                        "snapshot_id": None,
+                        "profile": None,
+                        "document_count": 0,
+                        "sources": {},
+                        "snapshot_read_only": True,
+                        "read_only": False,
+                        "tool_contract": TOOL_CONTRACT,
+                        "on_demand_source_ids": ["owasp", *SOURCES],
+                        "memory": "explicit_derived_notes",
+                    }
+                ],
+                warnings=[
+                    "Snapshot ainda não importado; knowledge_research pode consultar fontes registradas sob demanda."
+                ],
+            )
             return envelope
         sid, directory = snapshot_path(self.data_dir)
         manifest = json.loads((directory / "manifest.json").read_text(encoding="utf-8"))
@@ -452,8 +471,8 @@ class KnowledgeService:
                     "reranker": "disabled",
                     "read_only": False,
                     "snapshot_read_only": True,
-                    "tool_contract": 2,
-                    "on_demand_source_ids": ["owasp"],
+                    "tool_contract": TOOL_CONTRACT,
+                    "on_demand_source_ids": ["owasp", *SOURCES],
                     "memory": "explicit_derived_notes",
                 }
             ],
@@ -764,10 +783,9 @@ class KnowledgeService:
                 # Old snapshots contain standalone Markdown headings. They help
                 # find a document, but consume the evidence budget without facts.
                 # Keep document ranking; select the next ranked body section.
-                excerpt = row["text"][:min(1800, remaining)]
+                excerpt = row["text"][: min(1800, remaining)]
                 if documents[did]["content_type"] == "text/markdown" and not any(
-                    line.strip() and not re.match(r"^#{1,6}\s", line)
-                    for line in excerpt.splitlines()
+                    line.strip() and not re.match(r"^#{1,6}\s", line) for line in excerpt.splitlines()
                 ):
                     continue
                 grouped[did]["passages"].append(
@@ -787,15 +805,23 @@ class KnowledgeService:
                         "SELECT section_id,text FROM chunks WHERE document_id=? AND section_id=?",
                         (did, next_section),
                     ).fetchone()
-                    if neighbor and len(excerpt) + len(neighbor["text"]) <= 1800 and any(
-                        line.strip() and not re.match(r"^#{1,6}\s", line)
-                        for line in neighbor["text"].splitlines()
+                    if (
+                        neighbor
+                        and len(excerpt) + len(neighbor["text"]) <= 1800
+                        and any(
+                            line.strip() and not re.match(r"^#{1,6}\s", line)
+                            for line in neighbor["text"].splitlines()
+                        )
                     ):
-                        passages.append({
-                            "text": neighbor["text"], "section_id": neighbor["section_id"],
-                            "is_excerpt": True, "section_truncated": False,
-                            "selection": "adjacent_context",
-                        })
+                        passages.append(
+                            {
+                                "text": neighbor["text"],
+                                "section_id": neighbor["section_id"],
+                                "is_excerpt": True,
+                                "section_truncated": False,
+                                "selection": "adjacent_context",
+                            }
+                        )
         candidates = [item for item in grouped.values() if item["passages"]]
         selected, budget = [], 22000
         for candidate in candidates[offset : offset + limit]:

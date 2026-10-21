@@ -61,7 +61,8 @@ def test_empty_install_research_and_roundtrip_memory(rig):
     service, _, remote = rig
     assert service.dispatch("knowledge_status", {})["results"][0]["document_count"] == 0
     catalog = service.dispatch("knowledge_catalog", {})
-    assert len(catalog["results"]) == 5 and not remote.calls
+    assert {"attack", "owasp", "sigma", "cve", "kev"} <= {item["source_id"] for item in catalog["results"]}
+    assert not remote.calls
     response = ask(service)
     assert response["status"] == "partial"  # no snapshot is explicitly reported
     result = response["layers"]["source_cache"]["results"][0]
