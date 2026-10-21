@@ -108,6 +108,8 @@ IDs de fonte: `attack`, `owasp`, `sigma`, `cve`, `kev`, `nvd`. IDs de documento 
 
 O orçamento por resposta é de 24.000 caracteres de conteúdo recuperado. Trechos de busca são explicitamente excertos. O original completo é recuperado por `knowledge_get_document`; junte as partes decodificadas e confira `original_hash`. Objetos extraídos de STIX/KEV também apontam para o documento do arquivo original, preservado integralmente.
 
+A busca ignora trechos Markdown que contêm apenas títulos e aproveita até quatro trechos com conteúdo por documento, mantendo o teto de 3.600 caracteres por documento e de 1.800 por trecho. Quando o primeiro trecho e a seção seguinte cabem juntos em 1.800 caracteres, a seção seguinte acompanha o resultado como `adjacent_context`, com citação própria. Isso também funciona nos snapshots já existentes; o documento original e seus identificadores de seção continuam preservados.
+
 `knowledge_get_document` também devolve `text`, uma visualização UTF-8 legível da parte quando possível, para a IA ler sem precisar decodificar base64. A representação exata continua em `content`; os limites incluem as duas representações. `complete` indica que aquela resposta contém o documento inteiro; `last_part` indica apenas o fim da paginação.
 
 ## Validar
@@ -118,9 +120,11 @@ O orçamento por resposta é de 24.000 caracteres de conteúdo recuperado. Trech
 .\.venv\Scripts\python.exe -m cyber_rag evaluate --data-dir .\data\smoke --benchmark .\tests\fixtures\smoke.json
 ```
 
-Os dez checks sintéticos conferem contratos, relações e fidelidade dos bytes. As trinta perguntas em `evaluations/questions.json` são um plano de avaliação e ainda exigem gabaritos revisados sobre o corpus real. Não representam trinta perguntas aprovadas por GPT ou Claude. Veja [avaliação](docs/AVALIACAO.md) e [especificação](docs/ESPECIFICACAO_RAG_MCP.md).
+Os dez checks sintéticos conferem contratos, relações e fidelidade dos bytes. As trinta perguntas em `evaluations/questions.json` definem o benchmark de respostas dos clientes. `evaluations/retrieval.json` acrescenta pré-requisitos de recuperação executáveis para 24 delas e registra seis pendências de cliente/ambiente isolado. Isso não representa trinta respostas aprovadas por GPT ou Claude. Veja [avaliação](docs/AVALIACAO.md) e [especificação](docs/ESPECIFICACAO_RAG_MCP.md).
 
 `evaluations/pilot.json` contém onze verificações sobre as revisões reais registradas em [fontes e atribuição](docs/ORIGENS.md). O runner verifica as revisões antes de executar. Para essa base: `python -m cyber_rag evaluate --data-dir .\data --benchmark .\evaluations\pilot.json`. O comando compartilha o núcleo MCP; não abre uma segunda instância de Qdrant sobre o mesmo snapshot.
+
+Para os pré-requisitos das 30 perguntas: `python -m cyber_rag evaluate --data-dir .\data --benchmark .\evaluations\retrieval.json`. Use `--split development` ou `--split acceptance` para avaliar cada conjunto. O relatório mantém respostas dos clientes como `not_evaluated` e distingue casos aprovados, falhos e pendentes.
 
 ## Limites desta versão
 

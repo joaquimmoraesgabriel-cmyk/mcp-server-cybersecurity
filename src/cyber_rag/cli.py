@@ -56,6 +56,7 @@ def main(argv=None) -> int:
         if name == "evaluate":
             command.add_argument("--benchmark", type=Path)
             command.add_argument("--output", type=Path)
+            command.add_argument("--split", choices=("development", "acceptance", "smoke"))
     args = parser.parse_args(argv)
     data_dir = resolve_data_dir(args.data_dir)
     try:
@@ -131,7 +132,7 @@ def main(argv=None) -> int:
         elif args.command == "evaluate":
             from .evaluation import run_checks
 
-            report = run_checks(data_dir, args.benchmark, use_core=True)
+            report = run_checks(data_dir, args.benchmark, use_core=True, split=args.split)
             if args.output:
                 args.output.parent.mkdir(parents=True, exist_ok=True)
                 args.output.write_text(

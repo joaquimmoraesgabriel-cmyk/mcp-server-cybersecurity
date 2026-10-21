@@ -1,0 +1,194 @@
+{
+  "schema_version": "1.0",
+  "generated_at": "2026-10-21T15:42:08.316856Z",
+  "status": "failed",
+  "snapshot_id": "8c3f327f9674490ba2ac1a9e521071cf",
+  "benchmark_version": "retrieval-pilot-2026-10-21-v1",
+  "dataset_kind": "real-source-pilot",
+  "transport": "shared_core",
+  "split_filter": "development",
+  "client_answer_status": "not_evaluated",
+  "summary": {
+    "total": 15,
+    "eligible": 15,
+    "executed": 15,
+    "passed": 13,
+    "failed": 2,
+    "skipped": 0
+  },
+  "source_revision_check": {
+    "status": "passed",
+    "expected": {
+      "attack": "c2494b29dd268c46a5d0ea0990553e4327cd2253",
+      "owasp": "c366393214da5ae186a7a06a27dade7617987304",
+      "sigma": "773f8d1bd92f575002aabe62c64e0932bb7fac94",
+      "cve": "565af88a49a2d7eabfa12905caa1b05171fc603e",
+      "kev": "3de597fd70382f1f09acb09bf5e15dca4fa22678"
+    },
+    "actual": {
+      "attack": "c2494b29dd268c46a5d0ea0990553e4327cd2253",
+      "owasp": "c366393214da5ae186a7a06a27dade7617987304",
+      "sigma": "773f8d1bd92f575002aabe62c64e0932bb7fac94",
+      "cve": "565af88a49a2d7eabfa12905caa1b05171fc603e",
+      "kev": "3de597fd70382f1f09acb09bf5e15dca4fa22678"
+    }
+  },
+  "cases": [
+    {
+      "id": "Q01",
+      "split": "development",
+      "critical": false,
+      "status": "passed",
+      "checks_completed": 2,
+      "client_answer_status": "not_evaluated",
+      "elapsed_seconds": 0.2504
+    },
+    {
+      "id": "Q03",
+      "split": "development",
+      "critical": false,
+      "status": "passed",
+      "checks_completed": 3,
+      "client_answer_status": "not_evaluated",
+      "elapsed_seconds": 0.0614
+    },
+    {
+      "id": "Q05",
+      "split": "development",
+      "critical": false,
+      "status": "passed",
+      "checks_completed": 3,
+      "client_answer_status": "not_evaluated",
+      "elapsed_seconds": 0.0812
+    },
+    {
+      "id": "Q07",
+      "split": "development",
+      "critical": false,
+      "status": "passed",
+      "checks_completed": 2,
+      "client_answer_status": "not_evaluated",
+      "elapsed_seconds": 0.2657
+    },
+    {
+      "id": "Q09",
+      "split": "development",
+      "critical": false,
+      "status": "passed",
+      "checks_completed": 2,
+      "client_answer_status": "not_evaluated",
+      "elapsed_seconds": 0.0602
+    },
+    {
+      "id": "Q10",
+      "split": "development",
+      "critical": false,
+      "status": "passed",
+      "checks_completed": 1,
+      "client_answer_status": "not_evaluated",
+      "elapsed_seconds": 0.0304
+    },
+    {
+      "id": "Q12",
+      "split": "development",
+      "critical": false,
+      "status": "failed",
+      "checks_completed": 0,
+      "client_answer_status": "not_evaluated",
+      "reason": "Required text absent from the target document's delivered passages.",
+      "elapsed_seconds": 0.2626
+    },
+    {
+      "id": "Q13",
+      "split": "development",
+      "critical": false,
+      "status": "passed",
+      "checks_completed": 2,
+      "client_answer_status": "not_evaluated",
+      "elapsed_seconds": 0.3209
+    },
+    {
+      "id": "Q14",
+      "split": "development",
+      "critical": false,
+      "status": "failed",
+      "checks_completed": 0,
+      "client_answer_status": "not_evaluated",
+      "reason": "Required text absent from the target document's delivered passages.",
+      "elapsed_seconds": 0.277
+    },
+    {
+      "id": "Q15",
+      "split": "development",
+      "critical": false,
+      "status": "passed",
+      "checks_completed": 2,
+      "client_answer_status": "not_evaluated",
+      "elapsed_seconds": 0.3137
+    },
+    {
+      "id": "Q16",
+      "split": "development",
+      "critical": false,
+      "status": "passed",
+      "checks_completed": 2,
+      "client_answer_status": "not_evaluated",
+      "elapsed_seconds": 0.294
+    },
+    {
+      "id": "Q17",
+      "split": "development",
+      "critical": false,
+      "status": "passed",
+      "checks_completed": 2,
+      "client_answer_status": "not_evaluated",
+      "elapsed_seconds": 0.107
+    },
+    {
+      "id": "Q18",
+      "split": "development",
+      "critical": false,
+      "status": "passed",
+      "checks_completed": 1,
+      "client_answer_status": "not_evaluated",
+      "elapsed_seconds": 0.0914
+    },
+    {
+      "id": "Q19",
+      "split": "development",
+      "critical": false,
+      "status": "passed",
+      "checks_completed": 1,
+      "client_answer_status": "not_evaluated",
+      "elapsed_seconds": 0.0946
+    },
+    {
+      "id": "Q20",
+      "split": "development",
+      "critical": false,
+      "status": "passed",
+      "checks_completed": 1,
+      "client_answer_status": "not_evaluated",
+      "elapsed_seconds": 0.0082
+    }
+  ],
+  "by_split": {
+    "development": {
+      "passed": 13,
+      "failed": 2,
+      "skipped": 0
+    }
+  },
+  "not_evaluated": [
+    "GPT/Claude answer fidelity",
+    "client compatibility",
+    "semantic recall",
+    "real corpus coverage",
+    "adversarial instruction resistance"
+  ],
+  "warnings": [
+    "Passing deterministic retrieval checks does not approve the 30-question client benchmark."
+  ],
+  "benchmark_sha256": "2309da9cecf454b94d527907cb481634dc8c66e6a5a86324a7554132c1e06304",
+  "runner_sha256": "9fa124a4f0533a88f650e0e9df87c351e01fa6555374022f0007ebb9cebbe7aa"
+}

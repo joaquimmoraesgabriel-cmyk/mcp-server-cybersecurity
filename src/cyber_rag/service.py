@@ -736,16 +736,47 @@ class KnowledgeService:
                     "lifecycle_status": doc["metadata"].get("lifecycle_status"),
                     "passages": [],
                 }
-            if len(grouped[did]["passages"]) < 2:
+            passages = grouped[did]["passages"]
+            if any(passage["section_id"] == row["section_id"] for passage in passages):
+                continue
+            remaining = 3600 - sum(len(passage["text"]) for passage in passages)
+            if len(passages) < 4 and remaining:
+                # Old snapshots contain standalone Markdown headings. They help
+                # find a document, but consume the evidence budget without facts.
+                # Keep document ranking; select the next ranked body section.
+                excerpt = row["text"][:min(1800, remaining)]
+                if documents[did]["content_type"] == "text/markdown" and not any(
+                    line.strip() and not re.match(r"^#{1,6}\s", line)
+                    for line in excerpt.splitlines()
+                ):
+                    continue
                 grouped[did]["passages"].append(
                     {
-                        "text": row["text"][:1800],
+                        "text": excerpt,
                         "section_id": row["section_id"],
                         "is_excerpt": True,
-                        "section_truncated": len(row["text"]) > 1800,
+                        "section_truncated": len(row["text"]) > len(excerpt),
                     }
                 )
-        candidates = list(grouped.values())
+                # A short matching section may introduce a problem while the
+                # immediately following section explains its resolution. Keep
+                # that context when both fit in one ordinary excerpt budget.
+                if len(passages) == 1 and documents[did]["content_type"] == "text/markdown":
+                    next_section = f"section-{int(row['section_id'].removeprefix('section-')) + 1}"
+                    neighbor = db.execute(
+                        "SELECT section_id,text FROM chunks WHERE document_id=? AND section_id=?",
+                        (did, next_section),
+                    ).fetchone()
+                    if neighbor and len(excerpt) + len(neighbor["text"]) <= 1800 and any(
+                        line.strip() and not re.match(r"^#{1,6}\s", line)
+                        for line in neighbor["text"].splitlines()
+                    ):
+                        passages.append({
+                            "text": neighbor["text"], "section_id": neighbor["section_id"],
+                            "is_excerpt": True, "section_truncated": False,
+                            "selection": "adjacent_context",
+                        })
+        candidates = [item for item in grouped.values() if item["passages"]]
         selected, budget = [], 22000
         for candidate in candidates[offset : offset + limit]:
             size = sum(len(part["text"]) for part in candidate["passages"]) + len(candidate["title"])
@@ -772,6 +803,7 @@ class KnowledgeService:
                 "method": "exact+bm25" if manifest["profile"] == "lexical" else "exact+bm25+e5+rrf",
                 "candidate_limit_per_channel": 100,
                 "candidate_document_count": len(candidates),
+                "context_expansion": "short_adjacent_markdown_section",
                 "reranker": "disabled",
                 "exhaustive": False,
             },

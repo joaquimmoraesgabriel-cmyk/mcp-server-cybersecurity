@@ -1,6 +1,7 @@
 """Deterministic retrieval checks, separate from unevaluated client answers.
 
-This module never calls an LLM, imports a corpus or makes a network request.
+This module never calls an LLM, imports a corpus or contacts an external service.
+Shared-core mode uses the authenticated local loopback transport.
 Only cases with an explicit, verified retrieval oracle are executed.
 """
 
@@ -9,12 +10,29 @@ from __future__ import annotations
 import base64
 import hashlib
 import json
+import time
 from pathlib import Path
 from typing import Any
 
 from .models import utc_now
 
-CHECK_KINDS = {"entity", "missing_entity", "raw_document", "relation", "search"}
+CHECK_KINDS = {"entity", "missing_entity", "raw_document", "relation", "no_relation", "search"}
+
+
+def _at_path(value: Any, path: list) -> Any:
+    _require(isinstance(path, list) and 1 <= len(path) <= 30, "Invalid assertion path.")
+    for key in path:
+        _require(isinstance(key, (str, int)) and not isinstance(key, bool), "Invalid path key.")
+        value = value[key]
+    return value
+
+
+def _cited(response: dict, document_id: str, *, section_id: str | None = None) -> None:
+    _require(any(citation.get("document_id") == document_id
+                 and (section_id is None or citation.get("section_id") == section_id)
+                 and all(citation.get(field) for field in ("url", "revision", "original_hash"))
+                 for citation in response.get("citations", [])),
+             "Evidence lacks a matching document/section citation with provenance.")
 
 
 class _SharedCoreService:
@@ -53,7 +71,9 @@ def _run_case(service: Any, case: dict, snapshot_id: str) -> None:
     kind = case.get("check", {}).get("kind")
     check = case["check"]
     _require(kind in CHECK_KINDS, "Unsupported deterministic check; not evaluated as a success.")
-    if kind in {"entity", "raw_document"}:
+    if kind == "raw_document" and "document_id" in check:
+        document_id = check["document_id"]
+    elif kind in {"entity", "raw_document"}:
         entity_id = check["entity_id"]
         response = call("knowledge_get_entity", entity_id=entity_id)
         results = _positive(response)
@@ -65,11 +85,21 @@ def _run_case(service: Any, case: dict, snapshot_id: str) -> None:
         for source_id, expected in check.get("required_statuses", {}).items():
             _require(any(record.get("source_id") == source_id and record.get("status") == expected
                          for record in records), f"Expected lifecycle state missing for {source_id}.")
+        for record in records:
+            _cited(response, record["document_id"])
+        _require(not set(check.get("absent_source_ids", [])) & source_ids, "Unexpected source record.")
+        for expectation in check.get("required_record_values", []):
+            selected = [record for record in records if record["source_id"] == expectation["source_id"]]
+            _require(len(selected) == 1, "Field assertion requires one source record.")
+            _require(_at_path(selected[0], expectation["path"]) == expectation["equals"],
+                     "Source record field differs from the verified oracle.")
         if kind == "entity":
             return
         candidates = [record for record in records if record.get("source_id") == check["source_id"]]
         _require(len(candidates) == 1, "Raw-byte check requires one unambiguous source record.")
         document_id = candidates[0]["document_id"]
+
+    if kind == "raw_document":
         expected_hash = check["expected_sha256"]
         expected_size = check["expected_bytes"]
         assembled = bytearray()
@@ -83,6 +113,7 @@ def _run_case(service: Any, case: dict, snapshot_id: str) -> None:
             parts = _positive(document_response)
             _require(len(parts) == 1, "Expected one original part per response.")
             part = parts[0]
+            _cited(document_response, document_id)
             _require(part.get("content_encoding") == "base64", "Expected lossless base64 original.")
             raw = base64.b64decode(part["content"], validate=True)
             _require(part.get("document_id") == document_id, "Original identity changed.")
@@ -91,6 +122,8 @@ def _run_case(service: Any, case: dict, snapshot_id: str) -> None:
             _require(part.get("total_bytes") == expected_size, "Original byte length differs.")
             _require(part.get("byte_start") == len(assembled), "Original parts are not contiguous.")
             assembled.extend(raw)
+            _require(len(assembled) <= expected_size <= 64 * 1024 * 1024,
+                     "Original exceeds the expected or permitted size.")
             _require(part.get("byte_end") == len(assembled), "Part byte end is inconsistent.")
             cursor = document_response.get("next_cursor")
             if not cursor:
@@ -102,6 +135,12 @@ def _run_case(service: Any, case: dict, snapshot_id: str) -> None:
             raise AssertionError("Original exceeded the evaluation page limit.")
         _require(len(assembled) == expected_size, "Original reconstruction is incomplete.")
         _require(hashlib.sha256(assembled).hexdigest() == expected_hash, "Reconstructed bytes differ.")
+        for expected in check.get("required_json_values", []):
+            _require(_at_path(json.loads(assembled), expected["path"]) == expected["equals"],
+                     "Original JSON differs from the verified oracle.")
+        for term in check.get("required_text_terms", []):
+            _require(term.casefold() in assembled.decode("utf-8").casefold(),
+                     "Required text absent from the reconstructed original.")
     elif kind == "missing_entity":
         response = call("knowledge_get_entity", entity_id=check["entity_id"])
         absent = response.get("status") == "no_results" or (
@@ -115,6 +154,26 @@ def _run_case(service: Any, case: dict, snapshot_id: str) -> None:
                            for field in ("subject_id", "predicate", "object_id"))]
         _require(bool(matching), "Expected documented relation missing.")
         _require(all(result.get("evidence_document_id") for result in matching), "Relation lacks evidence.")
+    elif kind == "no_relation":
+        # Absence requires all pages; an error or partial first page is not proof.
+        cursor, seen = None, set()
+        for _ in range(100):
+            response = call("knowledge_get_related", entity_id=check["entity_id"], limit=50,
+                            **({"cursor": cursor} if cursor else {}))
+            _require(response.get("status") in {"ok", "partial", "no_results"},
+                     "Could not determine relation absence.")
+            _require(not any(result.get("subject_id", "").startswith(check["target_prefix"])
+                             or result.get("object_id", "").startswith(check["target_prefix"])
+                             for result in response.get("results", [])),
+                     "An unexpected source-asserted relation exists.")
+            cursor = response.get("next_cursor")
+            if not cursor:
+                _require(not response.get("truncated"), "Incomplete relation inventory.")
+                break
+            _require(cursor not in seen, "Repeated relation continuation cursor.")
+            seen.add(cursor)
+        else:
+            raise AssertionError("Relation inventory exceeded the page limit.")
     elif kind == "search":
         response = call("knowledge_search", query=check["query"], filters=check.get("filters", {}),
                         limit=check.get("limit", 10))
@@ -125,13 +184,27 @@ def _run_case(service: Any, case: dict, snapshot_id: str) -> None:
         required_sources = set(check.get("required_source_ids", []))
         _require(required_sources.issubset({result.get("source_id") for result in results}),
                  "Required source missing from search results.")
+        for expected in check.get("required_documents", []):
+            matches = [(rank, result) for rank, result in enumerate(results, 1)
+                       if result.get("document_id") == expected["document_id"]]
+            _require(len(matches) == 1, "Required document missing from the delivered search page.")
+            rank, document = matches[0]
+            _require(rank <= expected.get("max_rank", check.get("limit", 10)),
+                     "Required document ranked below the allowed position.")
+            for passage in document.get("passages", []):
+                _cited(response, document["document_id"], section_id=passage["section_id"])
+            body = "\n".join(passage["text"] for passage in document.get("passages", []))
+            for term in expected.get("passage_terms", []):
+                _require(term.casefold() in body.casefold(),
+                         "Required text absent from the target document's delivered passages.")
         text = "\n".join(passage.get("text", "") for result in results
                          for passage in result.get("passages", [])).casefold()
         for phrase in check.get("required_passage_terms", []):
             _require(phrase.casefold() in text, "Required text is not present in delivered passages.")
 
 
-def run_checks(data_dir: Path, benchmark_path: Path | None = None, *, use_core: bool = False) -> dict:
+def run_checks(data_dir: Path, benchmark_path: Path | None = None, *, use_core: bool = False,
+               split: str | None = None) -> dict:
     """Check an existing snapshot against an explicit benchmark; never seed data.
 
     Use ``use_core=True`` when clients may already own the vector storage.
@@ -143,6 +216,7 @@ def run_checks(data_dir: Path, benchmark_path: Path | None = None, *, use_core: 
         "schema_version": "1.0", "generated_at": utc_now(), "status": "not_evaluated",
         "snapshot_id": None, "benchmark_version": None, "dataset_kind": None,
         "transport": "shared_core" if use_core else "in_process",
+        "split_filter": split, "client_answer_status": "not_evaluated",
         "summary": {"total": 0, "eligible": 0, "executed": 0, "passed": 0, "failed": 0, "skipped": 0},
         "source_revision_check": {"status": "not_requested", "expected": {}, "actual": {}},
         "cases": [], "by_split": {},
@@ -165,6 +239,8 @@ def run_checks(data_dir: Path, benchmark_path: Path | None = None, *, use_core: 
     ids = [case.get("id") if isinstance(case, dict) else None for case in cases]
     if any(not isinstance(case_id, str) or not case_id for case_id in ids) or len(set(ids)) != len(ids):
         raise ValueError("Benchmark case IDs must be non-empty and unique.")
+    if split is not None:
+        cases = [case for case in cases if case.get("split") == split]
     expected_revisions = benchmark.get("source_revisions", {})
     if not isinstance(expected_revisions, dict) or any(
         not isinstance(source_id, str) or not source_id or not isinstance(revision, str) or not revision
@@ -174,6 +250,10 @@ def run_checks(data_dir: Path, benchmark_path: Path | None = None, *, use_core: 
     if expected_revisions:
         report["source_revision_check"].update(status="not_evaluated", expected=expected_revisions)
     report["benchmark_version"] = benchmark.get("benchmark_version")
+    report["benchmark_sha256"] = hashlib.sha256(benchmark_path.read_bytes()).hexdigest()
+    # A shared core may still run older code than the files on disk. Do not
+    # misrepresent a local service.py hash as the running server's identity.
+    report["runner_sha256"] = hashlib.sha256(Path(__file__).read_bytes()).hexdigest()
     report["dataset_kind"] = benchmark.get("dataset_kind")
     report["summary"]["total"] = len(cases)
     eligible = [case for case in cases if case.get("verification_status") == "verified"]
@@ -181,7 +261,9 @@ def run_checks(data_dir: Path, benchmark_path: Path | None = None, *, use_core: 
     for case in cases:
         if case not in eligible:
             report["cases"].append({"id": case["id"], "split": case.get("split", "unspecified"),
-                                    "status": "skipped", "reason": "Oracle not verified for this dataset."})
+                                    "critical": bool(case.get("critical")),
+                                    "status": "skipped", "reason": case.get("skip_reason")
+                                    or "Oracle not verified for this dataset."})
     if eligible:
         if use_core:
             from .runtime import ensure_core
@@ -205,7 +287,9 @@ def run_checks(data_dir: Path, benchmark_path: Path | None = None, *, use_core: 
                     status="failed" if revision_mismatches else "passed", actual=actual_revisions)
             for case in eligible:
                 result = {"id": case["id"], "split": case.get("split", "unspecified"),
-                          "critical": bool(case.get("critical")), "status": "passed"}
+                          "critical": bool(case.get("critical")), "status": "passed",
+                          "checks_completed": 0, "client_answer_status": "not_evaluated"}
+                started = time.perf_counter()
                 try:
                     _require(bool(snapshot_id) and state.get("status") in {"ok", "partial"},
                              "No readable snapshot available for evaluation.")
@@ -214,9 +298,16 @@ def run_checks(data_dir: Path, benchmark_path: Path | None = None, *, use_core: 
                     expected_snapshot = case.get("snapshot_id") or benchmark.get("snapshot_id")
                     _require(not expected_snapshot or expected_snapshot == snapshot_id,
                              "Oracle is bound to a different snapshot.")
-                    _run_case(service, case, snapshot_id)
-                except (AssertionError, KeyError, TypeError, ValueError) as exc:
+                    checks = case.get("checks", [case.get("check")])
+                    _require(isinstance(checks, list) and 1 <= len(checks) <= 20
+                             and all(isinstance(check, dict) for check in checks),
+                             "Expected 1 to 20 explicit checks.")
+                    for check in checks:
+                        _run_case(service, {"check": check}, snapshot_id)
+                        result["checks_completed"] += 1
+                except (AssertionError, KeyError, IndexError, TypeError, ValueError) as exc:
                     result.update(status="failed", reason=str(exc))
+                result["elapsed_seconds"] = round(time.perf_counter() - started, 4)
                 report["cases"].append(result)
             report["snapshot_id"] = snapshot_id
         finally:

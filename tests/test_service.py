@@ -41,6 +41,75 @@ def test_warmup_without_base_fails_explicitly(tmp_path):
         service.warmup()
 
 
+def test_search_returns_body_sections_with_matching_citations(tmp_path):
+    text = "# Password Storage\n\n## Background\n\n### Advice\n\nUse Argon2id to hash passwords.\n"
+    document = Document("owasp", "password.md", "test-v1", "https://example.org/password",
+                        "Password Storage", "text/markdown", text, text.encode())
+    ingest_documents(tmp_path, [document], {"owasp": {"revision": "test-v1"}})
+    service = KnowledgeService(tmp_path)
+    try:
+        result = service.dispatch("knowledge_search", {"query": "Password Storage"})
+        assert result["status"] == "ok"
+        passages = result["results"][0]["passages"]
+        assert len(passages) == 1
+        assert "Use Argon2id" in passages[0]["text"]
+        assert passages[0]["section_id"] == "section-2"
+        assert result["citations"][0]["section_id"] == "section-2"
+        original = service.dispatch("knowledge_get_document", {"document_id": document.document_id})
+        assert base64.b64decode(original["results"][0]["content"]) == text.encode()
+    finally:
+        service.close()
+
+
+def test_heading_only_markdown_is_not_returned_as_evidence(tmp_path):
+    document = Document("owasp", "empty.md", "test-v1", "https://example.org/empty",
+                        "Empty guide", "text/markdown", "# Empty guide\n", b"# Empty guide\n")
+    ingest_documents(tmp_path, [document], {"owasp": {"revision": "test-v1"}})
+    service = KnowledgeService(tmp_path)
+    try:
+        result = service.dispatch("knowledge_search", {"query": "Empty guide"})
+        assert result["status"] == "no_results"
+        assert not result["results"] and not result["citations"]
+    finally:
+        service.close()
+
+
+def test_short_passages_share_the_existing_document_budget(tmp_path):
+    text = "# Guide\n\n" + "".join(f"## Topic {i}\n\nUseful advice {i}.\n\n" for i in range(8))
+    document = Document("owasp", "guide.md", "test-v1", "https://example.org/guide",
+                        "Guide", "text/markdown", text, text.encode())
+    ingest_documents(tmp_path, [document], {"owasp": {"revision": "test-v1"}})
+    service = KnowledgeService(tmp_path)
+    try:
+        result = service.dispatch("knowledge_search", {"query": "Guide"})
+        passages = result["results"][0]["passages"]
+        assert len(passages) == 4
+        assert len({passage["section_id"] for passage in passages}) == 4
+        assert all("Useful advice" in passage["text"] for passage in passages)
+        assert sum(len(passage["text"]) for passage in passages) <= 3600
+        assert len(result["citations"]) == 4
+    finally:
+        service.close()
+
+
+def test_short_match_includes_next_section_with_its_own_citation(tmp_path):
+    text = "# Guide\n\n## Query building\n\nConcatenation example is unsafe.\n\n## Defense\n\nUse bind variables.\n"
+    document = Document("owasp", "query.md", "test-v1", "https://example.org/query",
+                        "Guide", "text/markdown", text, text.encode())
+    ingest_documents(tmp_path, [document], {"owasp": {"revision": "test-v1"}})
+    service = KnowledgeService(tmp_path)
+    try:
+        result = service.dispatch("knowledge_search", {"query": "Concatenation example"})
+        passages = result["results"][0]["passages"]
+        context = next(p for p in passages if p.get("selection") == "adjacent_context")
+        assert "Use bind variables" in context["text"]
+        assert context["section_id"] == "section-2"
+        assert len({p["section_id"] for p in passages}) == len(passages)
+        assert any(c["section_id"] == context["section_id"] for c in result["citations"])
+    finally:
+        service.close()
+
+
 def test_rejected_records_excluded_from_general_search_but_exact_preserved(prepared):
     service, _, _, _ = prepared
     general = service.dispatch("knowledge_search", {"query": "CVE", "limit": 20})

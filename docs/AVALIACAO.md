@@ -1,6 +1,6 @@
 # Avaliação da primeira implementação
 
-A primeira alfa separa **testes determinísticos de recuperação** do **benchmark de respostas dos clientes**. Os testes automatizados usam documentos sintéticos isolados. As 30 perguntas da especificação continuam planejadas, sem gabaritos conferidos no corpus real e sem respostas de GPT ou Claude avaliadas.
+A alfa separa **testes determinísticos de recuperação** do **benchmark de respostas dos clientes**. Há testes com documentos sintéticos isolados e verificações do corpus real. `evaluations/retrieval.json` associa as 30 perguntas a 24 conjuntos de pré-requisitos de recuperação executáveis e seis casos pendentes de cliente ou ambiente isolado. Isso não aprova as respostas finais das 30 perguntas no GPT ou Claude.
 
 Não há resultado medido de 95% de fidelidade, Recall@10, compatibilidade completa com clientes ou resistência a prompt injection. As metas da especificação são requisitos para a homologação futura.
 
@@ -56,7 +56,7 @@ Esses testes copiam ou criam hardlinks dos pesos imutáveis em uma base temporá
 
 A rodada verifica dimensões e normalização dos vetores reais, limite de 512 tokens, recuperação vetorial para uma consulta sem correspondência lexical nos fixtures, reconstrução de índices em novos snapshots, consulta de uma geração anterior e preservação da geração válida após rejeitar um manifesto de modelo não suportado. Isso testa a integração e a separação de gerações. Não compara a qualidade de duas revisões reais de embeddings, não mede Recall@10 e não homologa o corpus público.
 
-Na validação desta alfa, os **dois testes semânticos reais passaram**, sem skips, usando `intfloat/multilingual-e5-small` na revisão `614241f622f53c4eeff9890bdc4f31cfecc418b3`. O bloqueio de rede permaneceu ativo e nenhuma tentativa de conexão foi registrada. A rodada completa levou 105,85 segundos, incluindo importação das bibliotecas, preparação e vários carregamentos do modelo; esse tempo não representa a latência de uma consulta. Separadamente, os **nove testes do runner de avaliação passaram**, incluindo os dez smoke checks dos fixtures e a validação de revisões entre snapshots diferentes. Esses resultados não aprovam as 30 respostas de clientes planejadas.
+Na validação inicial desta alfa, os **dois testes semânticos reais passaram**, sem skips, usando `intfloat/multilingual-e5-small` na revisão `614241f622f53c4eeff9890bdc4f31cfecc418b3`. O bloqueio de rede permaneceu ativo e nenhuma tentativa de conexão foi registrada. A rodada inicial levou 105,85 segundos, incluindo importação das bibliotecas, preparação e vários carregamentos do modelo; esse tempo não representa a latência de uma consulta. Esses resultados não aprovam as 30 respostas de clientes planejadas. Rodadas posteriores ficam identificadas no relatório de evolução abaixo.
 
 ## Runner de recuperação
 
@@ -64,11 +64,13 @@ A função `cyber_rag.evaluation.run_checks(data_dir, benchmark_path, use_core=T
 
 Na API Python, o padrão `use_core=False` abre o serviço no próprio processo e exige acesso exclusivo ao diretório de dados. Esse modo é usado pelos testes com bases temporárias isoladas; não deve disputar a mesma base vetorial com um núcleo já em execução. Encerrar a avaliação pelo núcleo compartilhado não encerra as conexões dos demais clientes.
 
-Cada caso deve declarar `verification_status: "verified"` e um objeto `check` de tipo `entity`, `missing_entity`, `raw_document`, `relation` ou `search`. A avaliação fixa o snapshot durante a rodada. Quando o benchmark informa `source_revisions`, o runner compara todas as revisões com o estado publicado **antes** de executar a recuperação: uma fonte ausente ou divergente provoca falha. Gabaritos também podem informar um `snapshot_id` opcional para exigir uma geração local específica; um ID diferente provoca falha. Casos sem verificação são contabilizados como `skipped`.
+Cada caso deve declarar `verification_status: "verified"` e um objeto `check`, ou uma lista `checks` com 1 a 20 verificações. Tipos: `entity`, `missing_entity`, `raw_document`, `relation`, `no_relation` e `search`. Todos os checks do caso precisam passar. A avaliação fixa o snapshot durante a rodada. Quando o benchmark informa `source_revisions`, o runner compara todas as revisões com o estado publicado **antes** de executar a recuperação: uma fonte ausente ou divergente provoca falha. Gabaritos também podem informar um `snapshot_id` opcional para exigir uma geração local específica; um ID diferente provoca falha. Casos sem verificação são contabilizados como `skipped`, conservando o motivo.
+
+As verificações de busca podem exigir documento específico, posição máxima e termos nos trechos desse documento: encontrar a palavra em outro resultado não satisfaz o gabarito. As citações precisam apontar para o documento/seção correspondente. As verificações de entidade podem comparar campos por fonte; as de original recompõem todas as partes, verificam SHA-256 e podem conferir campos JSON. A ausência de uma relação exige percorrer todas as páginas; erro ou timeout nunca contam como ausência.
 
 O piloto real usa `source_revisions` e mantém `snapshot_id: null`. Assim, reindexar as mesmas fontes e a mesma seleção, inclusive em outra instalação ou perfil de busca, pode reutilizar os oráculos sem copiar um UUID de outra máquina. O relatório sempre registra o snapshot efetivamente consultado e a comparação das revisões. Revisões iguais não autorizam alterar silenciosamente a seleção: as evidências, hashes e limites de cobertura do gabarito continuam obrigatórios.
 
-O resultado contém `status`, `snapshot_id`, `summary`, resultados por caso, contagens por conjunto e capacidades não avaliadas:
+O resultado contém `status`, `snapshot_id`, `summary`, resultados por caso, número de checks concluídos, tempo por caso, contagens por conjunto e capacidades não avaliadas. Também registra o hash do benchmark e do runner. O hash do runner não identifica o código de um núcleo que já estava em execução. `client_answer_status` permanece `not_evaluated`.
 
 | Resultado | Significado |
 | --- | --- |
@@ -90,9 +92,47 @@ Os conjuntos mantêm a separação prevista:
 - Aceitação: Q02, Q04, Q06, Q08, Q11, Q21, Q22, Q23, Q24, Q25, Q26, Q27, Q28, Q29 e Q30.
 - Críticos: Q06, Q08, Q11, Q21, Q22, Q23, Q26, Q28, Q29 e Q30.
 
-O roteiro conserva duas variantes temporais para Q21, contexto fixo pendente para Q08/Q09 e a necessidade de ambientes isolados para Q27/Q29/Q30. Os fixtures de conflito CVE/NVD e de tentativa de prompt injection **ainda não foram criados ou avaliados**. Não estão incluídos nos dez smoke checks.
+O roteiro conserva duas variantes temporais para Q21 e a necessidade de ambientes isolados para Q27/Q29/Q30. O benchmark de recuperação já fixa o contexto de Q08/Q09 na regra Sigma `b9d9cc83-380b-4ba3-8d8f-60c0e7e2930c`, revisão `773f8d1bd92f575002aabe62c64e0932bb7fac94`. Isso permite conferir campos e requisitos sem depender do resultado variável de Q07. Os fixtures de conflito CVE/NVD e de tentativa de prompt injection **ainda não foram criados ou avaliados**. Não estão incluídos nos dez smoke checks.
 
 Executar esse JSON no runner atual produz 30 casos ignorados e `not_evaluated`. Promover casos requer conferir as evidências no snapshot real e acrescentar verificações executáveis adequadas. Questões que dependem de respostas dos clientes exigem outro roteiro de homologação; não devem ser convertidas em simples presença de palavras para alegar fidelidade.
+
+## Pré-requisitos das 30 perguntas no piloto real
+
+`evaluations/retrieval.json` é uma camada separada de `questions.json`: conserva as perguntas, os conjuntos e a criticidade, mas testa somente a entrega das evidências indicadas. Os valores foram conferidos nos originais das revisões fixadas. Não representa auditoria independente das afirmações das fontes.
+
+| Perguntas | Verificação executável | Limite |
+| --- | --- | --- |
+| Q01–Q02 | Busca por PowerShell, documento/trechos pertinentes e entidade exata. | Não pontua a explicação do cliente. |
+| Q03–Q05 | Técnica, subtécnica, atributos e relação explícita; original em Q04. | Q03/Q05 verificam consultas dirigidas aos IDs, não descoberta automática por linguagem natural. |
+| Q06 | Ausência do ID exato T9999.999. | Ausência somente no snapshot. |
+| Q07 | Busca da regra Sigma e preservação de seus requisitos/status. | Piloto contém uma regra; não mede cobertura do catálogo. |
+| Q08–Q10 | Contexto fixo, campos, condição, falsos positivos e bytes integrais da regra. | Não deduz Event ID, backend compatível ou configuração da máquina. |
+| Q11 | Tag/mapeamento e condição efetiva da regra. | A recusa de uma garantia universal depende do cliente. |
+| Q12–Q16 | Documento esperado em primeiro lugar, termos nos trechos e original completo. | Presença de termos não mede fidelidade da resposta final. |
+| Q17 | Registros CVE/KEV separados e original CVE; ausência de registro NVD. | Não substitui NVD por conteúdo de outra fonte. |
+| Q18–Q19 | Preservação integral da faixa `custom` e transições de versão do registro. | Não implementa comparador de versões nem recomenda atualização atual. |
+| Q20 | Versão, provedor, valor e vetor CVSS preservados. | Não transforma CVSS em risco da instalação. |
+| Q21 | Pendente: variantes temporais controladas. | O estado `fresh` sozinho não comprova consulta à origem hoje. |
+| Q22 | Pendente: resposta do cliente sobre ausência no KEV. | Consulta negativa não prova ausência de exploração. |
+| Q23 | Ausência da CVE exata fictícia. | Não afirma inexistência global. |
+| Q24 | CWEs do original CVE e do registro KEV, separadas. | Sem NVD neste piloto. |
+| Q25 | Relação explícita e tag da regra original. | Mapeamento não equivale a cobertura completa. |
+| Q26 | Ausência de ligação direta CVE–Sigma em todas as páginas. | Não prova ausência global ou de toda cadeia indireta possível. |
+| Q27 | Pendente: fixture isolado de conflito CVE/NVD. | Não há conflito preparado neste acervo. |
+| Q28 | Pendente: resposta sem telemetria. | Base de conhecimento não diagnostica a máquina. |
+| Q29 | Pendente: fixture adversarial e execução em cliente isolado. | Recuperar texto malicioso não demonstra resistência a ele. |
+| Q30 | Pendente: cliente isolado e registro das ações. | O servidor só expõe as cinco ferramentas de conhecimento. |
+
+Execute os conjuntos separadamente para não ajustar a busca usando aceitação:
+
+```powershell
+python -m cyber_rag evaluate --data-dir .\data --benchmark .\evaluations\retrieval.json --split development --output .local-data\development.json
+python -m cyber_rag evaluate --data-dir .\data --benchmark .\evaluations\retrieval.json --split acceptance --output .local-data\acceptance.json
+```
+
+Sem `--split`, o relatório inclui os 30 casos e contabiliza os seis pendentes. Os tempos medem o conjunto de consultas de cada caso com o núcleo preparado; não medem inicialização nem tempo de geração de resposta do cliente. O piloto é pequeno e dirigido: não se declara Recall@10 geral, taxa de fidelidade ou aprovação dos clientes.
+
+O histórico e os resultados desta etapa estão em [Validação de recuperação — 21/10/2026](VALIDACAO_RECUPERACAO_2026-10-21.md).
 
 ## Corpus real e próximos critérios de homologação
 

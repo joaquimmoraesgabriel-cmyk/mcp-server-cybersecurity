@@ -7,8 +7,9 @@ from pathlib import Path
 
 import pytest
 
-from cyber_rag.evaluation import run_checks
+from cyber_rag.evaluation import _run_case, run_checks
 from cyber_rag.ingestion import load_manifest
+from cyber_rag.models import Document
 from cyber_rag.snapshot import ingest_documents
 
 FIXTURES = Path(__file__).parent / "fixtures"
@@ -45,6 +46,104 @@ def test_no_benchmark_does_not_assume_test_data(tmp_path: Path) -> None:
     assert report["status"] == "not_evaluated"
     assert report["summary"]["executed"] == 0
     assert not (tmp_path / "absent").exists()
+
+
+def test_retrieval_matrix_preserves_all_questions_and_marks_client_gaps():
+    roadmap = json.loads(QUESTIONS.read_text(encoding="utf-8"))["cases"]
+    matrix = json.loads(QUESTIONS.with_name("retrieval.json").read_text(encoding="utf-8"))["cases"]
+    assert [{key: case[key] for key in ("id", "question", "split", "critical")} for case in matrix] == [
+        {key: case[key] for key in ("id", "question", "split", "critical")} for case in roadmap]
+    assert {case["id"] for case in matrix if case["verification_status"] != "verified"} == {
+        "Q21", "Q22", "Q27", "Q28", "Q29", "Q30"}
+    assert all(case["client_answer_status"] == "not_evaluated" for case in matrix)
+
+
+@pytest.mark.parametrize("checks", [[], [{}], [None], [{"kind": "unknown"}]])
+def test_empty_or_unsupported_checks_cannot_pass(fixture_data_dir, tmp_path, checks):
+    path = tmp_path / "invalid.json"
+    path.write_text(json.dumps({"cases": [{"id": "bad", "verification_status": "verified",
+                                         "checks": checks}]}), encoding="utf-8")
+    report = run_checks(fixture_data_dir, path)
+    assert report["summary"]["failed"] == 1
+    assert report["cases"][0]["checks_completed"] == 0
+
+
+def test_composite_checks_and_split_do_not_run_acceptance(fixture_data_dir, tmp_path):
+    valid = json.loads((FIXTURES / "smoke.json").read_text(encoding="utf-8"))["cases"][0]["check"]
+    path = tmp_path / "split.json"
+    path.write_text(json.dumps({"cases": [
+        {"id": "dev", "split": "development", "verification_status": "verified", "checks": [valid, valid]},
+        {"id": "held", "split": "acceptance", "verification_status": "verified", "checks": [{}]},
+    ]}), encoding="utf-8")
+    report = run_checks(fixture_data_dir, path, split="development")
+    assert report["summary"]["total"] == report["summary"]["passed"] == 1
+    assert report["cases"][0]["checks_completed"] == 2
+    assert report["client_answer_status"] == "not_evaluated"
+
+
+class Responses:
+    def __init__(self, responses):
+        self.responses = iter(responses)
+
+    def dispatch(self, name, arguments):
+        return next(self.responses)
+
+
+def test_search_term_in_wrong_document_cannot_satisfy_oracle():
+    response = {"status": "ok", "snapshot_id": "test", "results": [
+        {"document_id": "target", "passages": [{"section_id": "s0", "text": "Only a title"}]},
+        {"document_id": "other", "passages": [{"section_id": "s1", "text": "Argon2id"}]},
+    ], "citations": [{"document_id": "target", "section_id": "s0", "url": "https://example.org",
+                      "revision": "test-v1", "original_hash": "a" * 64}]}
+    check = {"kind": "search", "query": "passwords", "required_documents": [
+        {"document_id": "target", "passage_terms": ["Argon2id"]}]}
+    with pytest.raises(AssertionError, match="target document"):
+        _run_case(Responses([response]), {"check": check}, "test")
+    response["results"][0]["passages"][0]["text"] = "Use Argon2id"
+    response["citations"][0]["section_id"] = "wrong-section"
+    with pytest.raises(AssertionError, match="citation"):
+        _run_case(Responses([response]), {"check": check}, "test")
+
+
+@pytest.mark.parametrize("last", [
+    {"status": "error", "error": {"code": "TIMEOUT"}},
+    {"status": "ok", "results": [{"subject_id": "cve:X", "object_id": "sigma:Y"}]},
+])
+def test_negative_relation_requires_all_pages_and_no_errors(last):
+    first = {"status": "partial", "snapshot_id": "test", "results": [], "next_cursor": "page2"}
+    last = {"snapshot_id": "test", **last}
+    with pytest.raises(AssertionError):
+        _run_case(Responses([first, last]), {"check": {"kind": "no_relation", "entity_id": "cve:X",
+                                                     "target_prefix": "sigma:"}}, "test")
+
+
+def test_wrong_field_assertion_fails_after_successful_entity_lookup(fixture_data_dir, tmp_path):
+    valid = json.loads((FIXTURES / "smoke.json").read_text(encoding="utf-8"))["cases"][0]["check"]
+    valid["required_record_values"] = [{"source_id": "attack", "path": ["name"], "equals": "WRONG"}]
+    path = tmp_path / "wrong-field.json"
+    path.write_text(json.dumps({"cases": [{"id": "wrong", "verification_status": "verified",
+                                         "check": valid}]}), encoding="utf-8")
+    report = run_checks(fixture_data_dir, path)
+    assert report["status"] == "failed"
+    assert "field differs" in report["cases"][0]["reason"]
+
+
+def test_direct_original_reconstructs_pages_before_asserting_json(tmp_path):
+    raw = json.dumps({"padding": "x" * 21000, "versions": [{"status": "affected"}]}).encode()
+    document = Document("cve", "record.json", "test-v1", "https://example.org/record",
+                        "Test record", "application/json", raw.decode(), raw)
+    data_dir = tmp_path / "base"
+    ingest_documents(data_dir, [document], {"cve": {"revision": "test-v1"}})
+    check = {"kind": "raw_document", "document_id": document.document_id,
+             "expected_sha256": document.original_hash, "expected_bytes": len(raw),
+             "required_json_values": [{"path": ["versions", 0, "status"], "equals": "affected"}]}
+    path = tmp_path / "direct-original.json"
+    benchmark = {"cases": [{"id": "raw", "verification_status": "verified", "check": check}]}
+    path.write_text(json.dumps(benchmark), encoding="utf-8")
+    assert run_checks(data_dir, path)["status"] == "passed"
+    check["required_json_values"][0]["equals"] = "unaffected"
+    path.write_text(json.dumps(benchmark), encoding="utf-8")
+    assert run_checks(data_dir, path)["status"] == "failed"
 
 
 def test_verified_fixture_smoke_checks(fixture_data_dir: Path) -> None:
