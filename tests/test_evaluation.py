@@ -48,6 +48,16 @@ def test_no_benchmark_does_not_assume_test_data(tmp_path: Path) -> None:
     assert not (tmp_path / "absent").exists()
 
 
+def test_benchmark_content_digest_survives_git_line_ending_conversion(tmp_path):
+    content = json.dumps({"cases": [], "description": "avaliação"}, ensure_ascii=False, indent=2)
+    lf, crlf = tmp_path / "lf.json", tmp_path / "crlf.json"
+    lf.write_bytes(content.encode("utf-8"))
+    crlf.write_bytes(content.replace("\n", "\r\n").encode("utf-8"))
+    first, second = run_checks(tmp_path / "absent", lf), run_checks(tmp_path / "absent", crlf)
+    assert first["benchmark_sha256"] != second["benchmark_sha256"]
+    assert first["benchmark_content_sha256"] == second["benchmark_content_sha256"]
+
+
 def test_retrieval_matrix_preserves_all_questions_and_marks_client_gaps():
     roadmap = json.loads(QUESTIONS.read_text(encoding="utf-8"))["cases"]
     matrix = json.loads(QUESTIONS.with_name("retrieval.json").read_text(encoding="utf-8"))["cases"]

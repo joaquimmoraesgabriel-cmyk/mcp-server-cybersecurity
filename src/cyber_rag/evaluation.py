@@ -251,6 +251,9 @@ def run_checks(data_dir: Path, benchmark_path: Path | None = None, *, use_core: 
         report["source_revision_check"].update(status="not_evaluated", expected=expected_revisions)
     report["benchmark_version"] = benchmark.get("benchmark_version")
     report["benchmark_sha256"] = hashlib.sha256(benchmark_path.read_bytes()).hexdigest()
+    report["benchmark_content_sha256"] = hashlib.sha256(
+        json.dumps(benchmark, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    ).hexdigest()
     # A shared core may still run older code than the files on disk. Do not
     # misrepresent a local service.py hash as the running server's identity.
     report["runner_sha256"] = hashlib.sha256(Path(__file__).read_bytes()).hexdigest()

@@ -72,6 +72,8 @@ O piloto real usa `source_revisions` e mantém `snapshot_id: null`. Assim, reind
 
 O resultado contém `status`, `snapshot_id`, `summary`, resultados por caso, número de checks concluídos, tempo por caso, contagens por conjunto e capacidades não avaliadas. Também registra o hash do benchmark e do runner. O hash do runner não identifica o código de um núcleo que já estava em execução. `client_answer_status` permanece `not_evaluated`.
 
+`benchmark_sha256` identifica os bytes do arquivo lido na máquina da rodada. `benchmark_content_sha256` identifica o JSON normalizado (UTF-8, chaves ordenadas, sem espaços), permitindo comparar conteúdo entre checkouts com finais de linha LF ou CRLF. O Git pode converter esses finais de linha sem mudar os gabaritos.
+
 | Resultado | Significado |
 | --- | --- |
 | `passed` | Todos os casos elegíveis executados passaram, somente no escopo declarado pelo benchmark. |

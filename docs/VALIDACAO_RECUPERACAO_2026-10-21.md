@@ -16,6 +16,8 @@ Os dois casos que falharam inicialmente foram **Q12 — SQL Injection** e **Q14 
 
 Os relatórios sem conteúdo de fontes ou credenciais estão em [desenvolvimento antes](../evaluations/results/2026-10-21-development-before.json) e [matriz final](../evaluations/results/2026-10-21-retrieval-final.json). Eles registram snapshot, revisões, hash do benchmark, hash do runner, resultados e tempos por caso. As medições usam o núcleo preparado; os tempos não incluem inicialização ou geração de respostas de LLM.
 
+Os arquivos originais da rodada usaram CRLF no Windows; o repositório normaliza para LF. O hash de bytes foi preservado nos relatórios históricos. Foi acrescentado `benchmark_content_sha256`, calculado sobre o mesmo JSON normalizado, para comparar o gabarito publicado com o usado nas duas rodadas, independentemente dos finais de linha.
+
 O benchmark de recuperação foi fixado antes das medições. A busca foi ajustada usando apenas desenvolvimento; os nove casos executáveis de aceitação foram consultados depois da última alteração. A rodada completa repetiu esses checks para produzir um único relatório. As perguntas de aceitação constam da especificação pública e não constituem um teste cego externo.
 
 ## O que mudou
@@ -34,6 +36,7 @@ Os originais, hashes, IDs e snapshot foram preservados; não foi necessário bai
 
 - **127 testes passaram**, sem skips na rodada final, incluindo os dois testes semânticos com E5 real. A suíte levou 70,99 segundos. Os testes semânticos usam base temporária e bloqueiam conexões externas durante sua execução.
 - Ruff e `git diff --check` passaram.
+- Depois da publicação inicial, um teste adicional confirmou a comparação dos hashes de conteúdo entre LF/CRLF; a suíte focada do avaliador foi repetida. Essa alteração afeta somente metadados do relatório.
 - Pelo MCP conectado ao Codex, a consulta sobre senhas retornou o documento Password Storage com conteúdo de introdução, parâmetros e outras seções; a consulta de SQL Injection retornou a seção de defesas com citação própria. Ambas conservaram o snapshot acima. `partial` indicou que havia mais resultados disponíveis por paginação.
 - O núcleo atualizado ficou ativo com `--keep-alive --warmup`. A reinicialização expira cursores antigos; consultas novas usam o mesmo acervo.
 
