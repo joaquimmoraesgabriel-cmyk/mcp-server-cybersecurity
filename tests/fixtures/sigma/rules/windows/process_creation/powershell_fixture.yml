@@ -1,0 +1,23 @@
+title: PowerShell Fixture - SYNTHETIC TEST DATA
+id: d173fdb2-0cf7-4f92-8c4d-887f97baff1a
+status: test
+description: Synthetic test fixture; never deploy as a real detection rule.
+author: Cyber RAG test suite
+date: 2026-01-01
+modified: 2026-01-01
+references:
+  - https://example.invalid/fixtures/sigma/powershell
+tags:
+  - attack.execution
+  - attack.t1059.001
+logsource:
+  category: process_creation
+  product: windows
+detection:
+  selection:
+    Image|endswith: '\powershell.exe'
+    CommandLine|contains: SYNTHETIC_FIXTURE_MARKER
+  condition: selection
+falsepositives:
+  - Synthetic test activity
+level: informational

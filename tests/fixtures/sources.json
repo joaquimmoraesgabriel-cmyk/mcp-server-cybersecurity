@@ -1,0 +1,10 @@
+{
+  "description": "SYNTHETIC TEST FIXTURES ONLY. Never import into a production knowledge base.",
+  "sources": [
+    {"source_id": "attack", "root": "attack", "revision": "synthetic-test-fixture-v1", "base_url": "https://example.invalid/fixtures/attack/", "checked_at": "2026-01-01T00:00:00Z", "license_reference": "synthetic-test-fixture; no upstream content included", "selection_policy": "synthetic-test-fixture"},
+    {"source_id": "owasp", "root": "owasp", "revision": "synthetic-test-fixture-v1", "base_url": "https://example.invalid/fixtures/owasp/", "checked_at": "2026-01-01T00:00:00Z", "license_reference": "synthetic-test-fixture; no upstream content included", "selection_policy": "synthetic-test-fixture"},
+    {"source_id": "sigma", "root": "sigma", "revision": "synthetic-test-fixture-v1", "base_url": "https://example.invalid/fixtures/sigma/", "checked_at": "2026-01-01T00:00:00Z", "license_reference": "synthetic-test-fixture; no upstream content included", "selection_policy": "synthetic-test-fixture"},
+    {"source_id": "cve", "root": "cve", "revision": "synthetic-test-fixture-v1", "base_url": "https://example.invalid/fixtures/cve/", "checked_at": "2026-01-01T00:00:00Z", "license_reference": "synthetic-test-fixture; no upstream content included", "selection_policy": "synthetic-test-fixture"},
+    {"source_id": "kev", "root": "kev", "revision": "synthetic-test-fixture-v1", "base_url": "https://example.invalid/fixtures/kev/", "checked_at": "2026-01-01T00:00:00Z", "license_reference": "synthetic-test-fixture; no upstream content included", "selection_policy": "synthetic-test-fixture"}
+  ]
+}

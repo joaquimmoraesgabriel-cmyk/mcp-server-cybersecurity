@@ -1,0 +1,33 @@
+{
+  "type": "bundle",
+  "id": "bundle--00000000-0000-4000-8000-000000000001",
+  "objects": [
+    {
+      "type": "attack-pattern", "spec_version": "2.1",
+      "id": "attack-pattern--00000000-0000-4000-8000-000000000002",
+      "created": "2026-01-01T00:00:00Z", "modified": "2026-01-01T00:00:00Z",
+      "name": "Command and Scripting Interpreter — SYNTHETIC TEST FIXTURE",
+      "description": "SYNTHETIC TEST FIXTURE, not official ATT&CK content. A parent technique for testing interpreters and hierarchy lookup.",
+      "x_mitre_platforms": ["Windows", "Linux"], "x_mitre_is_subtechnique": false,
+      "external_references": [{"source_name": "mitre-attack", "external_id": "T1059", "url": "https://example.invalid/fixtures/attack/T1059"}]
+    },
+    {
+      "type": "attack-pattern", "spec_version": "2.1",
+      "id": "attack-pattern--00000000-0000-4000-8000-000000000003",
+      "created": "2026-01-01T00:00:00Z", "modified": "2026-01-01T00:00:00Z",
+      "name": "PowerShell — SYNTHETIC TEST FIXTURE",
+      "description": "SYNTHETIC TEST FIXTURE, not official ATT&CK content. PowerShell is the keyword used to exercise Windows retrieval. Este trecho sintético testa a busca por PowerShell no Windows.",
+      "x_mitre_platforms": ["Windows"], "x_mitre_is_subtechnique": true,
+      "external_references": [{"source_name": "mitre-attack", "external_id": "T1059.001", "url": "https://example.invalid/fixtures/attack/T1059.001"}]
+    },
+    {
+      "type": "relationship", "spec_version": "2.1",
+      "id": "relationship--00000000-0000-4000-8000-000000000004",
+      "created": "2026-01-01T00:00:00Z", "modified": "2026-01-01T00:00:00Z",
+      "description": "SYNTHETIC TEST FIXTURE relation only.",
+      "relationship_type": "subtechnique-of",
+      "source_ref": "attack-pattern--00000000-0000-4000-8000-000000000003",
+      "target_ref": "attack-pattern--00000000-0000-4000-8000-000000000002"
+    }
+  ]
+}

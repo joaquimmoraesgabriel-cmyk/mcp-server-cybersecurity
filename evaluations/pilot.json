@@ -1,0 +1,91 @@
+{
+  "benchmark_version": "pilot-real-2026-10-20-v1",
+  "dataset_kind": "real-source-pilot",
+  "description": "Verified retrieval oracles for the first real-source pilot, not the 30-question acceptance benchmark or a client-answer evaluation.",
+  "snapshot_id": null,
+  "snapshot_binding_note": "The runner requires the exact source_revisions below before evaluating cases. Local snapshot UUIDs may differ after reindexing or cloning. Keep the declared pilot selection and source bytes; each report records the snapshot actually queried. An optional non-null snapshot_id can additionally restrict a run to one local generation.",
+  "verification_method": "Read the pinned upstream bytes: ATT&CK external IDs and explicit STIX relationship; Sigma ID, ATT&CK tag and complete byte hash; CVE metadata; complete KEV catalog membership; selected OWASP passage. Negative IDs were checked against the pilot input scope.",
+  "source_revisions": {
+    "attack": "c2494b29dd268c46a5d0ea0990553e4327cd2253",
+    "owasp": "c366393214da5ae186a7a06a27dade7617987304",
+    "sigma": "773f8d1bd92f575002aabe62c64e0932bb7fac94",
+    "cve": "565af88a49a2d7eabfa12905caa1b05171fc603e",
+    "kev": "3de597fd70382f1f09acb09bf5e15dca4fa22678"
+  },
+  "coverage": {
+    "attack_entity_ids": ["attack:T1059", "attack:T1059.001"],
+    "sigma_rule_ids": ["sigma:b9d9cc83-380b-4ba3-8d8f-60c0e7e2930c"],
+    "cve_record_ids": ["cve:CVE-2021-44228"],
+    "kev_catalog_version": "2026.10.20",
+    "kev_catalog_count": 1754,
+    "nvd": "not included"
+  },
+  "cases": [
+    {
+      "id": "P01", "split": "smoke", "verification_status": "verified",
+      "question": "Consulte exatamente a subtécnica T1059.001.",
+      "evidence": {"source_id": "attack", "path": "enterprise-attack/enterprise-attack.json", "stix_id": "attack-pattern--970a3432-3237-47ad-bcca-7d8cbb217736", "external_id": "T1059.001", "name": "PowerShell"},
+      "check": {"kind": "entity", "entity_id": "attack:T1059.001", "required_source_ids": ["attack"], "required_statuses": {"attack": "current"}}
+    },
+    {
+      "id": "P02", "split": "smoke", "verification_status": "verified",
+      "question": "Consulte a técnica T1059 separadamente da subtécnica.",
+      "evidence": {"source_id": "attack", "stix_id": "attack-pattern--7385dfaf-6886-4229-9ecd-6fd678040830", "name": "Command and Scripting Interpreter"},
+      "check": {"kind": "entity", "entity_id": "attack:T1059", "required_source_ids": ["attack"]}
+    },
+    {
+      "id": "P03", "split": "smoke", "verification_status": "verified",
+      "question": "Qual relação documentada existe entre T1059.001 e T1059?",
+      "evidence": {"source_id": "attack", "stix_id": "relationship--b7dc0db4-b1fb-4235-8b49-0792e7019377", "relationship_type": "subtechnique-of"},
+      "check": {"kind": "relation", "entity_id": "attack:T1059.001", "subject_id": "attack:T1059.001", "predicate": "subtechnique-of", "object_id": "attack:T1059"}
+    },
+    {
+      "id": "P04", "split": "smoke", "verification_status": "verified",
+      "question": "Quais fontes locais têm registros para CVE-2021-44228?",
+      "evidence": {"cve_path": "cves/2021/44xxx/CVE-2021-44228.json", "cve_schema": "5.1", "cve_state": "PUBLISHED", "kev_catalog_version": "2026.10.20", "nvd": "not included; never imply its presence"},
+      "check": {"kind": "entity", "entity_id": "cve:CVE-2021-44228", "required_source_ids": ["cve", "kev"], "required_statuses": {"cve": "PUBLISHED", "kev": "listed-in-kev"}}
+    },
+    {
+      "id": "P05", "split": "smoke", "verification_status": "verified",
+      "question": "Consulte a regra Sigma selecionada para o piloto.",
+      "evidence": {"source_id": "sigma", "path": "rules/windows/process_creation/proc_creation_win_powershell_base64_encoded_cmd_patterns.yml", "logsource": {"category": "process_creation", "product": "windows"}},
+      "check": {"kind": "entity", "entity_id": "sigma:b9d9cc83-380b-4ba3-8d8f-60c0e7e2930c", "required_source_ids": ["sigma"], "required_statuses": {"sigma": "test"}}
+    },
+    {
+      "id": "P06", "split": "smoke", "verification_status": "verified",
+      "question": "Mostre o mapeamento explícito da regra Sigma para T1059.001.",
+      "evidence": {"source_id": "sigma", "locator": "/tags/1", "tag": "attack.t1059.001", "meaning": "Mapping only; does not prove universal detection coverage."},
+      "check": {"kind": "relation", "entity_id": "sigma:b9d9cc83-380b-4ba3-8d8f-60c0e7e2930c", "subject_id": "sigma:b9d9cc83-380b-4ba3-8d8f-60c0e7e2930c", "predicate": "mapped-to", "object_id": "attack:T1059.001"}
+    },
+    {
+      "id": "P07", "split": "smoke", "verification_status": "verified", "critical": true,
+      "question": "Recupere a regra Sigma integralmente, sem alteração dos bytes.",
+      "evidence": {"source_id": "sigma", "path": "rules/windows/process_creation/proc_creation_win_powershell_base64_encoded_cmd_patterns.yml", "verification": "SHA-256 computed from the downloaded raw file at the pinned Sigma commit."},
+      "check": {"kind": "raw_document", "entity_id": "sigma:b9d9cc83-380b-4ba3-8d8f-60c0e7e2930c", "source_id": "sigma", "required_source_ids": ["sigma"], "expected_sha256": "b88a027bdbd78d16f72c07bfad6b7b8c44b485ada030b7320b656a72cb8b9934", "expected_bytes": 1565}
+    },
+    {
+      "id": "P08", "split": "smoke", "verification_status": "verified",
+      "question": "Encontre a orientação OWASP sobre consultas parametrizadas para SQL Injection.",
+      "evidence": {"source_id": "owasp", "path": "cheatsheets/SQL_Injection_Prevention_Cheat_Sheet.md", "section": "Defense Option 1"},
+      "check": {"kind": "search", "query": "SQL Injection Prepared Statements", "filters": {"source_ids": ["owasp"]}, "limit": 10, "required_source_ids": ["owasp"], "required_passage_terms": ["Prepared Statements"]}
+    },
+    {
+      "id": "P09", "split": "smoke", "verification_status": "verified", "critical": true,
+      "question": "A base possui T9999.999?",
+      "evidence": {"scope": "No matching external ID in the downloaded Enterprise ATT&CK bundle; absent from the two-technique pilot selection."},
+      "check": {"kind": "missing_entity", "entity_id": "attack:T9999.999"}
+    },
+    {
+      "id": "P10", "split": "smoke", "verification_status": "verified", "critical": true,
+      "question": "A base piloto possui CVE-2099-999999?",
+      "evidence": {"scope": "Absent from the selected CVE Project record and the complete KEV snapshot. This does not assert absence from every external catalog."},
+      "check": {"kind": "missing_entity", "entity_id": "cve:CVE-2099-999999"}
+    },
+    {
+      "id": "P11", "split": "smoke", "verification_status": "verified",
+      "question": "Encontre a regra local de PowerShell com comandos codificados.",
+      "evidence": {"source_id": "sigma", "field": "title"},
+      "check": {"kind": "search", "query": "PowerShell encoded command", "filters": {"source_ids": ["sigma"]}, "limit": 10, "required_source_ids": ["sigma"], "required_entity_ids": ["sigma:b9d9cc83-380b-4ba3-8d8f-60c0e7e2930c"]}
+    }
+  ]
+}

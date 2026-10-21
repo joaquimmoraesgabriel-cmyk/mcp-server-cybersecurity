@@ -1,0 +1,42 @@
+[build-system]
+requires = ["hatchling>=1.27,<2"]
+build-backend = "hatchling.build"
+
+[project]
+name = "cyber-rag-mcp"
+version = "0.1.0a1"
+description = "Local cybersecurity knowledge retrieval over MCP"
+license = "MIT"
+license-files = ["LICENSE"]
+readme = "README.md"
+requires-python = ">=3.11,<3.14"
+dependencies = [
+  "mcp>=1.26,<2",
+  "PyYAML>=6.0.2,<7",
+  "filelock>=3.18,<4",
+  "qdrant-client>=1.15,<2",
+]
+
+[project.optional-dependencies]
+semantic = ["sentence-transformers>=3.4,<6"]
+
+[dependency-groups]
+dev = ["pytest>=8.3,<10", "pytest-asyncio>=0.25,<2", "ruff>=0.11,<1", "pip-audit>=2.9,<3"]
+
+[project.scripts]
+cyber-rag = "cyber_rag.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/cyber_rag"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+asyncio_mode = "auto"
+
+[tool.ruff]
+target-version = "py311"
+line-length = 110
+
+[tool.uv]
+no-build = true

@@ -1,0 +1,182 @@
+{
+  "schema_version": "1.0",
+  "benchmark_version": "synthetic-smoke-v1",
+  "dataset_kind": "synthetic_test_fixture",
+  "verification_note": "Expected values reviewed directly in the authored fixture files. This benchmark does not evaluate LLM answers or full upstream source coverage.",
+  "cases": [
+    {
+      "id": "S01",
+      "split": "synthetic_smoke",
+      "critical": false,
+      "verification_status": "verified",
+      "oracle_scope": "Only the checked-in synthetic fixtures, never real cybersecurity intelligence.",
+      "description": "Lookup exato da subtécnica preserva a identidade.",
+      "check": {
+        "kind": "entity",
+        "entity_id": "attack:T1059.001",
+        "required_source_ids": [
+          "attack"
+        ]
+      }
+    },
+    {
+      "id": "S02",
+      "split": "synthetic_smoke",
+      "critical": false,
+      "verification_status": "verified",
+      "oracle_scope": "Only the checked-in synthetic fixtures, never real cybersecurity intelligence.",
+      "description": "Lookup da técnica pai não é substituído pela subtécnica.",
+      "check": {
+        "kind": "entity",
+        "entity_id": "attack:T1059",
+        "required_source_ids": [
+          "attack"
+        ]
+      }
+    },
+    {
+      "id": "S03",
+      "split": "synthetic_smoke",
+      "critical": true,
+      "verification_status": "verified",
+      "oracle_scope": "Only the checked-in synthetic fixtures, never real cybersecurity intelligence.",
+      "description": "ID ausente não recebe substituição silenciosa.",
+      "check": {
+        "kind": "missing_entity",
+        "entity_id": "attack:T9999.999"
+      }
+    },
+    {
+      "id": "S04",
+      "split": "synthetic_smoke",
+      "critical": false,
+      "verification_status": "verified",
+      "oracle_scope": "Only the checked-in synthetic fixtures, never real cybersecurity intelligence.",
+      "description": "CVE sintética conserva registros CVE e KEV separados.",
+      "check": {
+        "kind": "entity",
+        "entity_id": "cve:CVE-2099-10001",
+        "required_source_ids": [
+          "cve",
+          "kev"
+        ],
+        "required_statuses": {
+          "cve": "PUBLISHED",
+          "kev": "listed-in-kev"
+        }
+      }
+    },
+    {
+      "id": "S05",
+      "split": "synthetic_smoke",
+      "critical": false,
+      "verification_status": "verified",
+      "oracle_scope": "Only the checked-in synthetic fixtures, never real cybersecurity intelligence.",
+      "description": "CVE rejeitada continua acessível exatamente e conserva o estado.",
+      "check": {
+        "kind": "entity",
+        "entity_id": "cve:CVE-2099-10002",
+        "required_source_ids": [
+          "cve"
+        ],
+        "required_statuses": {
+          "cve": "REJECTED"
+        }
+      }
+    },
+    {
+      "id": "S06",
+      "split": "synthetic_smoke",
+      "critical": true,
+      "verification_status": "verified",
+      "oracle_scope": "Only the checked-in synthetic fixtures, never real cybersecurity intelligence.",
+      "description": "Bytes originais da regra Sigma conferem com o arquivo de teste.",
+      "check": {
+        "kind": "raw_document",
+        "entity_id": "sigma:d173fdb2-0cf7-4f92-8c4d-887f97baff1a",
+        "source_id": "sigma",
+        "expected_sha256": "9a280d5ccaa24ddcbc395a32430d9bc91f0bfd8141d49d29db30bcd601b38c35",
+        "expected_bytes": 619
+      }
+    },
+    {
+      "id": "S07",
+      "split": "synthetic_smoke",
+      "critical": true,
+      "verification_status": "verified",
+      "oracle_scope": "Only the checked-in synthetic fixtures, never real cybersecurity intelligence.",
+      "description": "Relação hierárquica usa evidência do objeto STIX.",
+      "check": {
+        "kind": "relation",
+        "entity_id": "attack:T1059.001",
+        "subject_id": "attack:T1059.001",
+        "predicate": "subtechnique-of",
+        "object_id": "attack:T1059"
+      }
+    },
+    {
+      "id": "S08",
+      "split": "synthetic_smoke",
+      "critical": true,
+      "verification_status": "verified",
+      "oracle_scope": "Only the checked-in synthetic fixtures, never real cybersecurity intelligence.",
+      "description": "Relação Sigma vem de uma tag explícita, sem inferir cobertura.",
+      "check": {
+        "kind": "relation",
+        "entity_id": "sigma:d173fdb2-0cf7-4f92-8c4d-887f97baff1a",
+        "subject_id": "sigma:d173fdb2-0cf7-4f92-8c4d-887f97baff1a",
+        "predicate": "mapped-to",
+        "object_id": "attack:T1059.001"
+      }
+    },
+    {
+      "id": "S09",
+      "split": "synthetic_smoke",
+      "critical": false,
+      "verification_status": "verified",
+      "oracle_scope": "Only the checked-in synthetic fixtures, never real cybersecurity intelligence.",
+      "description": "Busca textual entrega passagens PowerShell com origem ATT&CK e Sigma.",
+      "check": {
+        "kind": "search",
+        "query": "PowerShell",
+        "limit": 10,
+        "required_source_ids": [
+          "attack",
+          "sigma"
+        ],
+        "required_entity_ids": [
+          "attack:T1059.001",
+          "sigma:d173fdb2-0cf7-4f92-8c4d-887f97baff1a"
+        ],
+        "required_passage_terms": [
+          "PowerShell",
+          "SYNTHETIC"
+        ]
+      }
+    },
+    {
+      "id": "S10",
+      "split": "synthetic_smoke",
+      "critical": false,
+      "verification_status": "verified",
+      "oracle_scope": "Only the checked-in synthetic fixtures, never real cybersecurity intelligence.",
+      "description": "Busca lexical em português recupera palavra presente no documento OWASP sintético.",
+      "check": {
+        "kind": "search",
+        "query": "parametrizadas",
+        "filters": {
+          "source_ids": [
+            "owasp"
+          ]
+        },
+        "limit": 10,
+        "required_source_ids": [
+          "owasp"
+        ],
+        "required_passage_terms": [
+          "consultas parametrizadas"
+        ]
+      }
+    }
+  ]
+}
